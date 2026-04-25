@@ -80,6 +80,124 @@ struct GitHubContent {
     download_url: Option<String>,
 }
 
+// Download a file from GitHub
+#[tauri::command]
+async fn download_github_file(path: String, local_path: String) -> Result<String, String> {
+    let url = format!("https://api.github.com/repos/BORGERone/BORG-Launcher/contents/{}", path);
+    
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .header("User-Agent", "BORG-Launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch file info: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("GitHub API returned status: {}", response.status()));
+    }
+    
+    let content: GitHubContent = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse GitHub response: {}", e))?;
+    
+    if content.content_type != "file" {
+        return Err(format!("Path is not a file: {}", path));
+    }
+    
+    let download_url = content.download_url.ok_or("No download URL available")?;
+    
+    let file_response = client
+        .get(&download_url)
+        .header("User-Agent", "BORG-Launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download file: {}", e))?;
+    
+    if !file_response.status().is_success() {
+        return Err(format!("Failed to download file: {}", file_response.status()));
+    }
+    
+    let file_content = file_response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read file content: {}", e))?;
+    
+    // Create parent directories if they don't exist
+    if let Some(parent) = Path::new(&local_path).parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+    
+    fs::write(&local_path, file_content).map_err(|e| format!("Failed to write file: {}", e))?;
+    
+    Ok(format!("Downloaded {} to {}", path, local_path))
+}
+
+// Download a folder from GitHub iteratively
+#[tauri::command]
+async fn download_github_folder(path: String, local_path: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let mut queue: Vec<(String, String)> = vec![(path.clone(), local_path)];
+    let mut downloaded = 0;
+    
+    while let Some((current_path, current_local_path)) = queue.pop() {
+        let url = format!("https://api.github.com/repos/BORGERone/BORG-Launcher/contents/{}", current_path);
+        
+        let response = client
+            .get(&url)
+            .header("User-Agent", "BORG-Launcher")
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch folder info: {}", e))?;
+        
+        if !response.status().is_success() {
+            return Err(format!("GitHub API returned status: {}", response.status()));
+        }
+        
+        let contents: Vec<GitHubContent> = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse GitHub response: {}", e))?;
+        
+        for item in contents {
+            let item_local_path = Path::new(&current_local_path).join(&item.name);
+            
+            if item.content_type == "file" {
+                if let Some(download_url) = item.download_url {
+                    let file_response = client
+                        .get(&download_url)
+                        .header("User-Agent", "BORG-Launcher")
+                        .send()
+                        .await
+                        .map_err(|e| format!("Failed to download file {}: {}", item.name, e))?;
+                    
+                    if file_response.status().is_success() {
+                        let file_content = file_response
+                            .bytes()
+                            .await
+                            .map_err(|e| format!("Failed to read file content {}: {}", item.name, e))?;
+                        
+                        if let Some(parent) = item_local_path.parent() {
+                            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
+                        }
+                        
+                        fs::write(&item_local_path, file_content).map_err(|e| format!("Failed to write file {}: {}", item.name, e))?;
+                        downloaded += 1;
+                    }
+                }
+            } else if item.content_type == "dir" {
+                queue.push((
+                    format!("{}/{}", current_path, item.name),
+                    item_local_path.to_str().unwrap_or(".").to_string()
+                ));
+            }
+        }
+    }
+    
+    Ok(format!("Downloaded {} items from {}", downloaded, path))
+}
+
 // Modrinth MRpack structures
 #[derive(Serialize, Deserialize, Debug)]
 struct ModrinthIndex {
@@ -472,67 +590,18 @@ async fn sync_mods_simple(game_dir: String, window: tauri::Window) -> Result<Str
 // Sync fancymenu config from GitHub
 #[tauri::command]
 async fn sync_fancymenu_from_github(game_dir: String) -> Result<String, String> {
-    let client = reqwest::Client::new();
-    let api_url = "https://api.github.com/repos/BORGERone/BORG-Launcher/contents/config/fancymenu";
-    
-    // Get file list from GitHub API
-    let response = client
-        .get(api_url)
-        .header("User-Agent", "BORG-Launcher")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch from GitHub: {}", e))?;
-    
-    if !response.status().is_success() {
-        return Err(format!("GitHub API returned status: {}", response.status()));
-    }
-    
-    let contents: Vec<GitHubContent> = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse GitHub response: {}", e))?;
-    
-    // Create target directory
+    // Download fancymenu folder from GitHub
     let target_dir = Path::new(&game_dir).join("config").join("fancymenu");
-    fs::create_dir_all(&target_dir)
-        .map_err(|e| format!("Failed to create directory: {}", e))?;
-    
-    // Download each file
-    let mut downloaded = 0;
-    for item in contents {
-        if item.content_type == "file" {
-            if let Some(download_url) = item.download_url {
-                let file_response = client
-                    .get(&download_url)
-                    .header("User-Agent", "BORG-Launcher")
-                    .send()
-                    .await
-                    .map_err(|e| format!("Failed to download {}: {}", item.name, e))?;
-                
-                if file_response.status().is_success() {
-                    let file_content = file_response
-                        .bytes()
-                        .await
-                        .map_err(|e| format!("Failed to read content: {}", e))?;
-                    
-                    let file_path = target_dir.join(&item.name);
-                    fs::write(&file_path, file_content)
-                        .map_err(|e| format!("Failed to write file {}: {}", item.name, e))?;
-                    
-                    downloaded += 1;
-                }
-            }
-        }
-    }
-    
-    Ok(format!("Downloaded {} files from config/fancymenu", downloaded))
+    download_github_folder("dop/fancymenu".to_string(), target_dir.to_str().unwrap_or(".").to_string()).await
 }
 
 // Download and install mods from MRpack
 #[tauri::command]
 async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Result<String, String> {
     let client = reqwest::Client::new();
-    let mrpack_url = "https://github.com/BORGERone/BORG-Launcher/releases/download/Alpha/123.1.0.0.mrpack";
+    
+    // Download MRpack file from GitHub dop folder
+    let mrpack_url = "https://github.com/BORGERone/BORG-Launcher/raw/main/dop/123%201.0.0.mrpack";
 
     // Function to calculate SHA1 hash of a file
     fn calculate_sha1(file_path: &Path) -> Result<String, std::io::Error> {
@@ -743,11 +812,28 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
 }
 
 #[tauri::command]
-fn read_news(game_dir: String) -> Result<String, String> {
-    let news_path = format!("{}/news.md", game_dir.replace('/', "\\"));
-    match fs::read_to_string(&news_path) {
-        Ok(content) => Ok(content),
-        Err(e) => Err(format!("Failed to read news.md: {}", e)),
+async fn read_news() -> Result<String, String> {
+    // Try to download news.md from GitHub
+    let config_dir = get_config_dir();
+    let local_news_path = format!("{}/news.md", config_dir);
+    
+    match download_github_file("dop/news.md".to_string(), local_news_path.clone()).await {
+        Ok(_) => {
+            // Successfully downloaded, now read it
+            match fs::read_to_string(&local_news_path) {
+                Ok(content) => Ok(content),
+                Err(e) => Err(format!("Failed to read downloaded news.md: {}", e)),
+            }
+        }
+        Err(e) => {
+            // Fallback to local news.md if GitHub download fails
+            let launcher_dir = get_launcher_dir();
+            let news_path = format!("{}/news.md", launcher_dir.replace('/', "\\"));
+            match fs::read_to_string(&news_path) {
+                Ok(content) => Ok(content),
+                Err(_) => Err(format!("Failed to read news.md from GitHub or local: {}", e)),
+            }
+        }
     }
 }
 
@@ -855,23 +941,8 @@ fn main() {
             Ok(())
         })
         .on_window_event(|event| {
-            if let tauri::WindowEvent::Resized(size) = event.event() {
-                // Save window size when resized
-                let width = size.width as i32;
-                let height = size.height as i32;
-                
-                // Only save if reasonable size (not minimized)
-                if width > 100 && height > 100 {
-                    if let Ok(config) = load_config_from_file() {
-                        let new_config = LauncherConfig {
-                            window_width: width,
-                            window_height: height,
-                            ..config
-                        };
-                        let _ = save_config_to_file(new_config);
-                    }
-                }
-            }
+            // Don't save config on resize to avoid console windows in release
+            // Config is saved on window close and explicit save operations
         })
         .invoke_handler(tauri::generate_handler![
             load_config_from_file,
@@ -895,6 +966,8 @@ fn main() {
             show_window,
             is_minecraft_running,
             count_directory_items,
+            download_github_file,
+            download_github_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -50,6 +50,9 @@ target/
 src-tauri/target/
 *.rs.bk
 
+# Ignore target directory specifically, not the whole src-tauri
+**/target/
+
 # Minecraft game files
 .minecraft/
 *.jar

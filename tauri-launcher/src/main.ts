@@ -212,8 +212,7 @@ async function loadNews() {
     
     // Fallback to local file
     log("Falling back to local file");
-    const gameDir = gameDirInput?.value || "E:/Games/test";
-    const newsText = await invoke("read_news", { gameDir }) as string;
+    const newsText = await invoke("read_news") as string;
     if (newsText && typeof newsText === "string") {
       const htmlContent = parseMarkdown(newsText);
       if (newsContent) {
