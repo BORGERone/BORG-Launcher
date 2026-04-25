@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BORG Minecraft Launcher</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Beaufort+for+LOL:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Portal Glow Gradients -->
+      <div class="portal-glow glow-1"></div>
+      <div class="portal-glow glow-2"></div>
+      <div class="portal-glow glow-3"></div>
+      <div class="portal-glow glow-4"></div>
+
+      <!-- R Files Background -->
+      <div class="bg-r bg-r-1"></div>
+      <div class="bg-r bg-r-2"></div>
+      <div class="bg-r bg-r-3"></div>
+      <div class="bg-r bg-r-4"></div>
+
+      <!-- Background Image with Voxel Scene -->
+      <div class="bg-image"></div>
+      <video class="bg-video" autoplay muted loop playsinline>
+        <source src="/portal.mp4" type="video/mp4">
+      </video>
+      <div class="bg-overlay"></div>
+
+      <!-- Image Modal -->
+      <div class="image-modal" id="image-modal">
+        <span class="image-modal-close" id="image-modal-close">&times;</span>
+        <img class="image-modal-content" id="image-modal-content">
+      </div>
+
+      <!-- Main Container -->
+      <div class="launcher-container">
+        <!-- Header - Draggable region -->
+        <header class="header" data-tauri-drag-region>
+          <div class="logo">
+            <div class="logo-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <h1>BORG <span class="highlight">LAUNCHER</span></h1>
+          </div>
+          <div class="header-controls" data-tauri-drag-region="false">
+          </div>
+        </header>
+        <!-- Window controls outside draggable header -->
+        <div class="window-controls-wrapper">
+          <div class="window-controls">
+            <button class="window-btn" id="btn-minimize">
+              <svg viewBox="0 0 12 12" fill="currentColor">
+                <rect x="1" y="5" width="10" height="2" rx="0.5"/>
+              </svg>
+            </button>
+            <button class="window-btn" id="btn-maximize">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="1.5" y="1.5" width="9" height="9" rx="1"/>
+              </svg>
+            </button>
+            <button class="window-btn window-close" id="btn-close">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 2L10 10M10 2L2 10"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Content - League of Legends Style -->
+        <main class="main-content">
+          <!-- Left Side - Empty for background visibility -->
+          <div class="left-panel"></div>
+          
+          <!-- Center - News Panel -->
+          <div class="panel news-panel">
+            <div class="panel-header">
+              <h2>Новости</h2>
+              <div class="hextech-line"></div>
+            </div>
+            <div class="news-content" id="news-content"></div>
+          </div>
+
+          <!-- Right Side - Crystal Control Panel -->
+          <div class="panel crystal-panel">
+            <div class="panel-header">
+              <div class="server-status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="server-status">Checking...</span>
+              </div>
+              <div class="hextech-line"></div>
+            </div>
+            
+            <div class="progress-container" id="progress-container" style="display: none;">
+              <div class="crystal-progress">
+                <div class="progress-fill" id="progress-fill"></div>
+              </div>
+              <span class="progress-text" id="progress-text">0%</span>
+            </div>
+
+            <div class="crystal-actions">
+              <!-- Summoner Name -->
+              <div class="input-group">
+                <label for="nickname">Имя игрока</label>
+                <input type="text" id="nickname" placeholder="Enter your name" maxlength="16">
+              </div>
+
+              <button class="btn-glass btn-settings" id="btn-settings" style="margin-top: 0px;">
+                <div class="glass-shine"></div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span>настройки</span>
+              </button>
+
+              <!-- PNG PLAY Button -->
+              <button class="btn-play-png" id="btn-play" style="margin-top: 0px;">
+                <img class="play-idle" src="/1I.png" alt="Play"/>
+                <img class="play-hover" src="/2I.png" alt="Play Hover"/>
+                <img class="play-active" src="/3I.png" alt="Play Active"/>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Panel - Log -->
+          <div class="panel log-panel">
+            <div class="panel-header">
+              <h2>BATTLE LOG</h2>
+              <div class="log-actions">
+                <button class="btn-copy" id="btn-copy">скопировать</button>
+                <button class="btn-clear" id="btn-clear">стереть</button>
+              </div>
+            </div>
+            <div class="log-content" id="log-content">
+              <div class="log-line info">Welcome to BORG Minecraft Launcher!</div>
+              <div class="log-line info">Ready for battle.</div>
+            </div>
+          </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+          <a href="https://github.com/BORGERone/BORG-Launcher" target="_blank" class="footer-link">BORG Minecraft Launcher v1.0</a>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Settings Modal - Glass Island Style -->
+    <div class="modal" id="settings-modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-island">
+        <div class="modal-island-header">
+          <h2>Настройки</h2>
+          <button class="btn-close" id="btn-close-settings">&times;</button>
+        </div>
+        <div class="modal-island-body">
+          <!-- Left Column -->
+          <div class="settings-column">
+            <!-- System Settings -->
+            <div class="settings-section">
+              <div class="settings-section-title">
+                <svg class="settings-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                Система
+              </div>
+              <div class="input-group">
+                <label for="game-dir">Директория игры</label>
+                <div class="path-input island-input">
+                  <input type="text" id="game-dir" readonly>
+                  <button class="btn-browse" id="btn-browse">Обзор</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game Settings -->
+            <div class="settings-section">
+              <div class="settings-section-title">
+                <svg class="settings-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                  <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                  <path d="M4 22h16"/>
+                  <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                  <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                  <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                </svg>
+                Игра
+              </div>
+              <div class="input-group">
+                <label for="ram">Память (GB)</label>
+                <div class="hextech-slider">
+                  <input type="range" id="ram" min="2" max="16" value="4" step="1">
+                  <span class="ram-value"><span id="ram-value">4</span> GB</span>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label>Версия игры</label>
+                <select id="version-select" class="hextech-select">
+                  <option value="neoforge-21.1.227">NeoForge 21.1.227</option>
+                  <option value="1.21.1">Vanilla 1.21.1</option>
+                </select>
+              </div>
+
+              <div class="install-wrapper" style="position: relative; margin-top: 12px;">
+                <div class="install-progress" id="install-progress">
+                  <div class="install-progress-bar" id="install-progress-bar"></div>
+                </div>
+                <button class="btn-glass" id="btn-install" style="width: 100%; position: relative; z-index: 1;">
+                  <div class="glass-shine"></div>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>Установить</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="settings-column">
+            <!-- Automation Settings -->
+            <div class="settings-section">
+              <div class="settings-section-title">
+                <svg class="settings-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M12 2v4"/>
+                  <path d="M12 18v4"/>
+                  <path d="M4.93 4.93l2.83 2.83"/>
+                  <path d="M16.24 16.24l2.83 2.83"/>
+                  <path d="M2 12h4"/>
+                  <path d="M18 12h4"/>
+                  <path d="M4.93 19.07l2.83-2.83"/>
+                  <path d="M16.24 7.76l2.83-2.83"/>
+                </svg>
+                Автоматизация
+              </div>
+              <div class="input-group">
+                <div class="toggle-container">
+                  <label for="autosync-toggle" class="toggle-label">Автосинхронизация модов</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="autosync-toggle">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="sync-wrapper" style="position: relative; margin-top: 12px;">
+                <div class="sync-progress" id="sync-progress">
+                  <div class="sync-progress-bar" id="sync-progress-bar"></div>
+                </div>
+                <button class="btn-glass" id="btn-sync" style="width: 100%; position: relative; z-index: 1;">
+                  <div class="glass-shine"></div>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                  </svg>
+                  <span>синхронизировать моды</span>
+                </button>
+              </div>
+              <div class="fix-build-wrapper" style="position: relative; margin-top: 12px;">
+                <div class="fix-build-progress" id="fix-build-progress">
+                  <div class="fix-build-progress-bar" id="fix-build-progress-bar"></div>
+                </div>
+                <button class="btn-glass btn-danger" id="btn-fix-build" style="width: 100%; position: relative; z-index: 1;">
+                  <div class="glass-shine"></div>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                  </svg>
+                  <span>Починить сборку</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="settings-section">
+              <div class="settings-section-title">
+                <svg class="settings-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                Открыть директорию
+              </div>
+              <button class="btn-glass" id="btn-open-mods" style="margin-top: 12px; width: 100%;">
+                <div class="glass-shine"></div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+                <span>Моды</span>
+              </button>
+              <button class="btn-glass" id="btn-open-screenshots" style="margin-top: 12px; width: 100%;">
+                <div class="glass-shine"></div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Скриншоты</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-island-footer">
+          <button class="btn-glass btn-island-cancel" id="btn-cancel-settings"><span>Закрыть</span></button>
+          <button class="btn-glass btn-island-save" id="btn-save-settings"><span>Сохранить</span></button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

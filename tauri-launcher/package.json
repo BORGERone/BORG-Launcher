@@ -1,0 +1,22 @@
+{
+  "name": "borg-minecraft-launcher",
+  "version": "2.0.0",
+  "description": "BORG Minecraft Launcher v2 - Beautiful Tauri Edition",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri-dev": "tauri dev",
+    "tauri-build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^1.5.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+[package]
+name = "borg-minecraft-launcher"
+version = "2.0.0"
+description = "BORG Minecraft Launcher v2 - Beautiful Tauri Edition"
+authors = ["BORG Team"]
+license = "MIT"
+repository = ""
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "1.5.0", features = [] }
+
+[dependencies]
+tauri = { version = "1.5.0", features = [ "http-all", "system-tray", "window-show", "window-hide", "shell-execute", "window-unmaximize", "window-minimize", "window-close", "window-maximize", "window-start-dragging", "dialog-open", "shell-open"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+zip = "0.6"
+sha1 = "0.10"
+sha2 = "0.10"
+hex = "0.4"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

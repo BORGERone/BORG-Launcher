@@ -1,0 +1,103 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev -- --port 5174",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:5174",
+    "distDir": "../dist",
+    "withGlobalTauri": false
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": ["https://raw.githubusercontent.com/*"]
+      },
+      "dialog": {
+        "all": false,
+        "open": true
+      },
+      "shell": {
+        "all": false,
+        "open": true,
+        "execute": true,
+        "scope": [
+          {
+            "name": "explorer",
+            "cmd": "explorer",
+            "args": true
+          },
+          {
+            "name": "cmd",
+            "cmd": "cmd",
+            "args": true
+          }
+        ]
+      },
+      "window": {
+        "all": false,
+        "close": true,
+        "minimize": true,
+        "maximize": true,
+        "unmaximize": true,
+        "startDragging": true,
+        "hide": true,
+        "show": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "Game",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/icon.ico"
+      ],
+      "identifier": "com.borg.launcher",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "BORG Minecraft Launcher",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 700,
+        "resizable": true,
+        "title": "BORG Minecraft Launcher v2",
+        "width": 1200,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true,
+        "decorations": false,
+        "transparent": false
+      }
+    ],
+    "systemTray": {
+      "iconPath": "icons/icon.ico",
+      "iconAsTemplate": false
+    }
+  }
+}
