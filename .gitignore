@@ -1,0 +1,6 @@
+# Игнорировать всё в папке config
+config/*
+
+# Не игнорировать папку fancymenu и её содержимое
+!config/fancymenu/
+!config/fancymenu/*
