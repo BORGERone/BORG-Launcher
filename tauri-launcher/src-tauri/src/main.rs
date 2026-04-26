@@ -999,16 +999,9 @@ fn copy_servers_dat(game_dir: &str) -> Result<(), String> {
         let source_file = Path::new(&dop_dir).join("dop").join("servers.dat");
         let target_file = Path::new(game_dir).join("servers.dat");
         
-        println!("DEBUG: Looking for servers.dat at: {:?}", source_file);
-        println!("DEBUG: Source exists: {}", source_file.exists());
-        println!("DEBUG: Target path: {:?}", target_file);
-        
         if source_file.exists() {
             fs::copy(&source_file, &target_file)
                 .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
-            println!("DEBUG: Successfully copied servers.dat");
-        } else {
-            println!("DEBUG: Source file does not exist");
         }
     }
     
@@ -1022,16 +1015,9 @@ fn copy_servers_dat(game_dir: &str) -> Result<(), String> {
         let source_file = exe_dir.join("dop").join("servers.dat");
         let target_file = Path::new(game_dir).join("servers.dat");
         
-        println!("DEBUG: Looking for servers.dat at: {:?}", source_file);
-        println!("DEBUG: Source exists: {}", source_file.exists());
-        println!("DEBUG: Target path: {:?}", target_file);
-        
         if source_file.exists() {
             fs::copy(&source_file, &target_file)
                 .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
-            println!("DEBUG: Successfully copied servers.dat");
-        } else {
-            println!("DEBUG: Source file does not exist");
         }
     }
     
