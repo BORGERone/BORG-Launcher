@@ -13,7 +13,7 @@ mkdir "BORGLauncher_Release"
 
 REM Copy exe file (icon is embedded)
 echo Copying portable version...
-xcopy "tauri-launcher\src-tauri\target\release\borg-minecraft-launcher.exe" "BORGLauncher_Release\BORGLauncher.exe" /Y
+copy "tauri-launcher\src-tauri\target\release\borg-minecraft-launcher.exe" "BORGLauncher_Release\BORGLauncher.exe" /Y
 
 echo.
 echo Portable release built successfully in BORGLauncher_Release folder

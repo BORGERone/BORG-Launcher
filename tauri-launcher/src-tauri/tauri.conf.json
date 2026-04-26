@@ -97,7 +97,7 @@
       }
     ],
     "systemTray": {
-      "iconPath": "icons/icon.ico",
+      "iconPath": "icons/icon.png",
       "iconAsTemplate": false
     }
   }
