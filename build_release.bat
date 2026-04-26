@@ -15,10 +15,6 @@ REM Copy exe file (icon is embedded)
 echo Copying portable version...
 xcopy "tauri-launcher\src-tauri\target\release\borg-minecraft-launcher.exe" "BORGLauncher_Release\BORGLauncher.exe" /Y
 
-REM Copy dop folder (contains mrpack, servers.dat, fancymenu)
-echo Copying dop folder...
-xcopy "dop" "BORGLauncher_Release\dop" /E /I /Y
-
 echo.
 echo Portable release built successfully in BORGLauncher_Release folder
 echo.

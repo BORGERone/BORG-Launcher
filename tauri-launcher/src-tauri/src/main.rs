@@ -982,7 +982,7 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
     let final_progress = create_progress_bar(downloaded + skipped, total_mods);
     emit_progress_update(&window, format!("{}   Complete!", final_progress));
     
-    let _ = copy_servers_dat(&game_dir);
+    let _ = download_servers_dat(&game_dir).await;
     
     // Sync fancymenu from GitHub after mods sync
     let _ = sync_fancymenu_from_github(game_dir.clone()).await;
@@ -990,35 +990,27 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
     Ok(format!("Downloaded {} mods, skipped {} existing mods from MRpack", downloaded, skipped))
 }
 
-// Copy servers.dat from dop folder to game directory
-fn copy_servers_dat(game_dir: &str) -> Result<(), String> {
-    // In release mode, dop folder is next to exe, not in AppData
-    #[cfg(debug_assertions)]
-    {
-        let dop_dir = get_launcher_dir();
-        let source_file = Path::new(&dop_dir).join("dop").join("servers.dat");
-        let target_file = Path::new(game_dir).join("servers.dat");
-        
-        if source_file.exists() {
-            fs::copy(&source_file, &target_file)
-                .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
-        }
-    }
+// Download servers.dat from GitHub to game directory
+async fn download_servers_dat(game_dir: &str) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let url = "https://github.com/BORGERone/BORG-Launcher/raw/main/dop/servers.dat";
+    let target_file = Path::new(game_dir).join("servers.dat");
     
-    #[cfg(not(debug_assertions))]
-    {
-        // In release mode, get exe directory
-        let exe_path = env::current_exe()
-            .map_err(|e| format!("Failed to get exe path: {}", e))?;
-        let exe_dir = exe_path.parent()
-            .ok_or("Failed to get exe directory")?;
-        let source_file = exe_dir.join("dop").join("servers.dat");
-        let target_file = Path::new(game_dir).join("servers.dat");
+    let response = client
+        .get(url)
+        .header("User-Agent", "BORG-Launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download servers.dat: {}", e))?;
+    
+    if response.status().is_success() {
+        let content = response
+            .bytes()
+            .await
+            .map_err(|e| format!("Failed to read servers.dat: {}", e))?;
         
-        if source_file.exists() {
-            fs::copy(&source_file, &target_file)
-                .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
-        }
+        fs::write(&target_file, content)
+            .map_err(|e| format!("Failed to write servers.dat: {}", e))?;
     }
     
     Ok(())
