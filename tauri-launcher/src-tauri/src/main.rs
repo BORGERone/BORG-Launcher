@@ -992,13 +992,33 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
 
 // Copy servers.dat from dop folder to game directory
 fn copy_servers_dat(game_dir: &str) -> Result<(), String> {
-    let dop_dir = get_launcher_dir();
-    let source_file = Path::new(&dop_dir).join("dop").join("servers.dat");
-    let target_file = Path::new(game_dir).join("servers.dat");
+    // In release mode, dop folder is next to exe, not in AppData
+    #[cfg(debug_assertions)]
+    {
+        let dop_dir = get_launcher_dir();
+        let source_file = Path::new(&dop_dir).join("dop").join("servers.dat");
+        let target_file = Path::new(game_dir).join("servers.dat");
+        
+        if source_file.exists() {
+            fs::copy(&source_file, &target_file)
+                .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
+        }
+    }
     
-    if source_file.exists() {
-        fs::copy(&source_file, &target_file)
-            .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
+    #[cfg(not(debug_assertions))]
+    {
+        // In release mode, get exe directory
+        let exe_path = env::current_exe()
+            .map_err(|e| format!("Failed to get exe path: {}", e))?;
+        let exe_dir = exe_path.parent()
+            .ok_or("Failed to get exe directory")?;
+        let source_file = exe_dir.join("dop").join("servers.dat");
+        let target_file = Path::new(game_dir).join("servers.dat");
+        
+        if source_file.exists() {
+            fs::copy(&source_file, &target_file)
+                .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
+        }
     }
     
     Ok(())
