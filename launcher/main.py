@@ -102,25 +102,41 @@ def launch_minecraft(version_id, username, ram_mb, game_dir=None):
         
         print(f"Launch command: {' '.join(minecraft_command[:8])}...")
         
+        # Create log file for Minecraft output
+        log_file = Path(game_dir) / "minecraft_launcher.log"
+        
         # Launch as detached process
         if sys.platform == "win32":
             # Windows: use creationflags to hide console
-            subprocess.Popen(
-                minecraft_command,
-                cwd=game_dir,
-                creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            with open(log_file, 'w') as f:
+                f.write(f"Minecraft launch command: {' '.join(minecraft_command)}\n")
+                f.write(f"Game directory: {game_dir}\n")
+                f.write(f"Java path: {java_path}\n\n")
+            
+            # Launch with stdout/stderr redirected to log file for debugging
+            with open(log_file, 'a') as f:
+                subprocess.Popen(
+                    minecraft_command,
+                    cwd=game_dir,
+                    creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
+                    stdout=f,
+                    stderr=subprocess.STDOUT,
+                )
         else:
             # Unix: use start_new_session
-            subprocess.Popen(
-                minecraft_command,
-                cwd=game_dir,
-                start_new_session=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            with open(log_file, 'w') as f:
+                f.write(f"Minecraft launch command: {' '.join(minecraft_command)}\n")
+                f.write(f"Game directory: {game_dir}\n")
+                f.write(f"Java path: {java_path}\n\n")
+            
+            with open(log_file, 'a') as f:
+                subprocess.Popen(
+                    minecraft_command,
+                    cwd=game_dir,
+                    start_new_session=True,
+                    stdout=f,
+                    stderr=subprocess.STDOUT,
+                )
         
         return True, "Game launched successfully"
         
