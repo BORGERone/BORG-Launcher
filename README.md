@@ -8,6 +8,13 @@ BORG Minecraft Launcher - современный лаунчер для Minecraft
 
 ---
 
+## Зависимости
+
+| Зависимость | Описание |
+|--------|-------------|
+| **[Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)** | Необходима для запуска Minecraft |
+| **[Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)** | Необходима для работы с некоторыми скриптами |
+
 ## Основные возможности
 
 ### Управление модами
