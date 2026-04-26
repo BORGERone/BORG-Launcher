@@ -14,23 +14,10 @@ use sha1::{Sha1, Digest};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::ExitStatusExt;
 
-// Get the base directory where the launcher is located
-fn get_launcher_dir() -> String {
-    // In dev mode, use project root; in release, use exe directory
-    #[cfg(debug_assertions)]
-    {
-        String::from("E:/Project/BORGLauncher")
-    }
-    
-    #[cfg(not(debug_assertions))]
-    {
-        let exe_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
-        exe_path.parent()
-            .and_then(|p| p.to_str())
-            .unwrap_or(".")
-            .to_string()
-    }
-}
+// Embed launcher files
+#[derive(rust_embed::RustEmbed)]
+#[folder = "../../launcher"]
+struct LauncherAssets;
 
 // Get the config directory (AppData for config storage)
 fn get_config_dir() -> String {
@@ -49,6 +36,79 @@ fn get_config_dir() -> String {
         fs::create_dir_all(&config_dir).unwrap_or_else(|_| ());
         
         config_dir.to_str().unwrap_or(".").to_string()
+    }
+}
+
+// Extract launcher files to AppData on first run
+fn extract_launcher_files() -> Result<(), String> {
+    let config_dir = get_config_dir();
+    let launcher_dir = Path::new(&config_dir).join("launcher");
+    
+    // Check if launcher files already exist and are valid
+    if launcher_dir.exists() {
+        // Check for essential files to validate the launcher directory
+        let essential_files = vec!["__init__.py", "launch_game.py", "config.py", "download.py"];
+        let mut all_files_exist = true;
+        
+        for file in essential_files {
+            if !launcher_dir.join(file).exists() {
+                all_files_exist = false;
+                break;
+            }
+        }
+        
+        if all_files_exist {
+            return Ok(());
+        }
+        
+        // Directory exists but is incomplete, delete it
+        fs::remove_dir_all(&launcher_dir)
+            .map_err(|e| format!("Failed to delete incomplete launcher directory: {}", e))?;
+    }
+    
+    // Create launcher directory
+    fs::create_dir_all(&launcher_dir)
+        .map_err(|e| format!("Failed to create launcher directory: {}", e))?;
+    
+    // Extract all embedded files
+    for file_path in LauncherAssets::iter() {
+        let file_content = LauncherAssets::get(&file_path)
+            .ok_or_else(|| format!("Failed to get file: {}", file_path))?;
+        
+        let target_path = launcher_dir.join(file_path.as_ref());
+        
+        // Create parent directories if needed
+        if let Some(parent) = target_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
+        }
+        
+        // Write file
+        fs::write(&target_path, file_content.data)
+            .map_err(|e| format!("Failed to write file {}: {}", file_path, e))?;
+    }
+    
+    Ok(())
+}
+
+// Get the base directory where the launcher is located
+fn get_launcher_dir() -> String {
+    // In dev mode, use project root; in release, use AppData
+    #[cfg(debug_assertions)]
+    {
+        String::from("E:/Project/BORGLauncher")
+    }
+    
+    #[cfg(not(debug_assertions))]
+    {
+        // Extract files on first run
+        if let Err(e) = extract_launcher_files() {
+            eprintln!("Failed to extract launcher files: {}", e);
+        }
+        
+        // Return parent directory of launcher (for PYTHONPATH)
+        let config_dir = get_config_dir();
+        config_dir
     }
 }
 
@@ -253,10 +313,17 @@ struct LauncherState {
 fn load_config_from_file() -> Result<LauncherConfig, String> {
     let launcher_dir = get_launcher_dir();
     
-    let output = Command::new("python")
-        .env("PYTHONPATH", &launcher_dir)
-        .args(&["-m", "launcher.config", "--load"])
-        .output()
+    let mut cmd = Command::new("python");
+    cmd.env("PYTHONPATH", &launcher_dir)
+        .args(&["-m", "launcher.config", "--load"]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
         .map_err(|e| format!("Failed to load config: {}", e))?;
     
     if output.status.success() {
@@ -283,10 +350,17 @@ fn save_config_to_file(config: LauncherConfig) -> Result<(), String> {
     let config_json = serde_json::to_string(&config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
     
-    let output = Command::new("python")
-        .env("PYTHONPATH", &launcher_dir)
-        .args(&["-m", "launcher.config", "--save-json", &config_json])
-        .output()
+    let mut cmd = Command::new("python");
+    cmd.env("PYTHONPATH", &launcher_dir)
+        .args(&["-m", "launcher.config", "--save-json", &config_json]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
         .map_err(|e| format!("Failed to save config: {}", e))?;
     
     if output.status.success() {
@@ -347,8 +421,8 @@ async fn launch_game(
     let launcher_dir = get_launcher_dir();
 
     // Call Python launcher with correct PYTHONPATH
-    let output = Command::new("python")
-        .env("PYTHONPATH", &launcher_dir)
+    let mut cmd = Command::new("python");
+    cmd.env("PYTHONPATH", &launcher_dir)
         .args(&[
             "-m", "launcher.launch_game",
             "--nickname", &nickname,
@@ -357,8 +431,15 @@ async fn launch_game(
             "--game-dir", &game_dir,
         ])
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
+        .stderr(Stdio::piped());
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
         .map_err(|e| format!("Failed to start launcher: {}", e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -384,8 +465,8 @@ async fn install_game(
     let launcher_dir = get_launcher_dir();
 
     // Spawn Python installer process
-    let mut child = Command::new("python")
-        .env("PYTHONPATH", &launcher_dir)
+    let mut cmd = Command::new("python");
+    cmd.env("PYTHONPATH", &launcher_dir)
         .env("PYTHONUNBUFFERED", "1")  // Disable Python stdout buffering
         .args(&[
             "-u",  // Unbuffered stdout/stderr
@@ -394,8 +475,15 @@ async fn install_game(
             "--game-dir", &game_dir,
         ])
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+        .stderr(Stdio::piped());
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let mut child = cmd.spawn()
         .map_err(|e| format!("Failed to start installer: {}", e))?;
 
     // Read output in separate thread
@@ -458,16 +546,23 @@ async fn sync_mods(state: State<'_, LauncherState>) -> Result<String, String> {
 
     let launcher_dir = get_launcher_dir();
 
-    let output = Command::new("python")
-        .env("PYTHONPATH", &launcher_dir)
+    let mut cmd = Command::new("python");
+    cmd.env("PYTHONPATH", &launcher_dir)
         .args(&[
             "-m", "launcher.mod_sync",
             "--sync",
             "--game-dir", &game_dir,
         ])
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
+        .stderr(Stdio::piped());
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
         .map_err(|e| format!("Failed to start sync: {}", e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -540,8 +635,8 @@ fn clear_mods_folder(game_dir: String) -> Result<String, String> {
 #[tauri::command]
 async fn launch_game_simple(nickname: String, ram_mb: i32, version: String, game_dir: String) -> Result<String, String> {
     let launcher_dir = get_launcher_dir();
-    let output = Command::new("python")
-        .current_dir(&launcher_dir)
+    let mut cmd = Command::new("python");
+    cmd.current_dir(&launcher_dir)
         .env("PYTHONPATH", &launcher_dir)
         .args(&[
             "-m", "launcher.launch_game",
@@ -549,8 +644,15 @@ async fn launch_game_simple(nickname: String, ram_mb: i32, version: String, game
             "--ram", &ram_mb.to_string(),
             "--version", &version,
             "--game-dir", &game_dir,
-        ])
-        .output()
+        ]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
         .map_err(|e| format!("Failed to launch: {}", e))?;
     
     if output.status.success() {
@@ -563,10 +665,17 @@ async fn launch_game_simple(nickname: String, ram_mb: i32, version: String, game
 #[tauri::command]
 async fn install_game_simple(game_dir: String) -> Result<String, String> {
     let launcher_dir = get_launcher_dir();
-    let output = Command::new("python")
-        .env("PYTHONPATH", &launcher_dir)
-        .args(&["-m", "launcher.download", "--install", "--game-dir", &game_dir])
-        .output()
+    let mut cmd = Command::new("python");
+    cmd.env("PYTHONPATH", &launcher_dir)
+        .args(&["-m", "launcher.download", "--install", "--game-dir", &game_dir]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
         .map_err(|e| format!("Failed to install: {}", e))?;
     
     if output.status.success() {
@@ -854,9 +963,16 @@ fn is_minecraft_running() -> bool {
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
-        let output = Command::new("tasklist")
-            .args(&["/FI", "IMAGENAME eq java.exe", "/FO", "CSV"])
-            .output()
+        let mut cmd = Command::new("tasklist");
+        cmd.args(&["/FI", "IMAGENAME eq java.exe", "/FO", "CSV"]);
+        
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        
+        let output = cmd.output()
             .unwrap_or_else(|_| std::process::Output {
                 status: std::process::ExitStatus::from_raw(1),
                 stdout: vec![],
