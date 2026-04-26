@@ -744,18 +744,18 @@ async fn sync_mods_simple(game_dir: String, window: tauri::Window) -> Result<Str
     // Use MRpack sync instead of Python sync
     let result = sync_mods_from_mrpack(game_dir.clone(), window).await?;
     
-    // Still sync fancymenu from GitHub after mods sync
-    let _ = sync_fancymenu_from_github(game_dir).await;
+    // Sync config folder from GitHub after mods sync
+    let _ = sync_config_from_github(game_dir).await;
     
     Ok(result)
 }
 
-// Sync fancymenu config from GitHub
+// Sync config folder from GitHub (includes fancymenu, bettercombat, epicfight, etc.)
 #[tauri::command]
-async fn sync_fancymenu_from_github(game_dir: String) -> Result<String, String> {
-    // Download fancymenu folder from GitHub
-    let target_dir = Path::new(&game_dir).join("config").join("fancymenu");
-    download_github_folder("dop/fancymenu".to_string(), target_dir.to_str().unwrap_or(".").to_string()).await
+async fn sync_config_from_github(game_dir: String) -> Result<String, String> {
+    // Download entire config folder from GitHub dop/config to game config
+    let target_dir = Path::new(&game_dir).join("config");
+    download_github_folder("dop/config".to_string(), target_dir.to_str().unwrap_or(".").to_string()).await
 }
 
 // Download and install mods from MRpack
@@ -984,8 +984,8 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
     
     let _ = download_servers_dat(&game_dir).await;
     
-    // Sync fancymenu from GitHub after mods sync
-    let _ = sync_fancymenu_from_github(game_dir.clone()).await;
+    // Sync config folder from GitHub after mods sync
+    let _ = sync_config_from_github(game_dir.clone()).await;
     
     Ok(format!("Downloaded {} mods, skipped {} existing mods from MRpack", downloaded, skipped))
 }
@@ -1172,7 +1172,6 @@ fn main() {
             install_game_simple,
             sync_mods_simple,
             sync_mods_from_mrpack,
-            sync_fancymenu_from_github,
             read_news,
             hide_window,
             show_window,
@@ -1180,6 +1179,7 @@ fn main() {
             count_directory_items,
             download_github_file,
             download_github_folder,
+            sync_config_from_github,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
