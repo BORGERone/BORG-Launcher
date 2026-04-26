@@ -68,7 +68,7 @@ async function loadConfig() {
     ramInput.value = String((currentConfig.ram_mb || 4096) / 1024);
     ramValue.textContent = String((currentConfig.ram_mb || 4096) / 1024);
     versionSelect.value = currentConfig.last_version || "neoforge-21.1.227";
-    gameDirInput.value = currentConfig.game_dir || "E:/Games/test";
+    gameDirInput.value = currentConfig.game_dir || "";
 
     log(`Config loaded: ${currentConfig.game_dir}`);
   } catch (e) {

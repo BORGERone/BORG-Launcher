@@ -185,6 +185,9 @@ def install_neoforge(version: str = NEOFORGE_VERSION) -> bool:
     game_dir = str(GAME_DIR)
     java_path = find_java()
     
+    print(f"Using Java path: {java_path}", flush=True)
+    print(f"Java exists: {Path(java_path).exists()}", flush=True)
+    
     # Try installation up to 3 times (installer can resume failed downloads)
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
@@ -252,23 +255,45 @@ def find_java(game_dir=None) -> str:
     if game_dir is None:
         game_dir = GAME_DIR
     
-    # Try to find Java in common locations
-    java_paths = [
-        "java",
-        "C:/Program Files/Java/jdk-17/bin/java.exe",
-        "C:/Program Files/Java/jdk-21/bin/java.exe",
-        "C:/Program Files (x86)/Java/jre1.8.0_361/bin/java.exe",
-        "C:/Program Files/Eclipse Adoptium/jdk-17*/bin/java.exe",
-        "C:/Program Files/Microsoft/jdk-17*/bin/java.exe",
-    ]
+    print(f"Searching for Java in game_dir: {game_dir}", flush=True)
     
-    # Also check runtime folder in game_dir
+    # Also check runtime folder in game_dir first (Minecraft bundled Java)
     game_path = Path(game_dir)
     runtime_dirs = list(game_path.glob("runtime/*/bin/java.exe"))
     runtime_dirs.extend(game_path.glob("runtime/*/*/bin/java.exe"))
     
     for p in runtime_dirs:
-        java_paths.insert(0, str(p))
+        if p.exists():
+            print(f"Found Java in runtime: {p}", flush=True)
+            return str(p)
+    
+    # Try to find Java in common locations
+    java_paths = [
+        "java",
+        "C:/Program Files/Java/jdk-17/bin/java.exe",
+        "C:/Program Files/Java/jdk-21/bin/java.exe",
+        "C:/Program Files/Java/jdk-*/bin/java.exe",
+        "C:/Program Files (x86)/Java/jre1.8.0_361/bin/java.exe",
+        "C:/Program Files (x86)/Java/jre*/bin/java.exe",
+        "C:/Program Files/Eclipse Adoptium/jdk-17*/bin/java.exe",
+        "C:/Program Files/Eclipse Adoptium/jdk-21*/bin/java.exe",
+        "C:/Program Files/Microsoft/jdk-17*/bin/java.exe",
+        "C:/Program Files/Microsoft/jdk-21*/bin/java.exe",
+        "C:/Program Files/Java/*/bin/java.exe",
+        "C:/Program Files (x86)/Java/*/bin/java.exe",
+    ]
+    
+    # Try 'where java' command on Windows
+    try:
+        import subprocess
+        result = subprocess.run(["where", "java"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0 and result.stdout.strip():
+            first_java = result.stdout.strip().split('\n')[0]
+            if Path(first_java).exists():
+                print(f"Found Java via 'where' command: {first_java}", flush=True)
+                return first_java
+    except Exception as e:
+        print(f"'where java' failed: {e}", flush=True)
     
     for java in java_paths:
         if '*' in java:
@@ -277,18 +302,14 @@ def find_java(game_dir=None) -> str:
             matches = glob.glob(java)
             if matches:
                 java = matches[0]
-            else:
-                continue
         
-        try:
-            result = subprocess.run([java, "-version"], capture_output=True, timeout=5)
-            if result.returncode == 0:
-                print(f"Found Java: {java}", flush=True)
-                return java
-        except:
-            pass
+        if Path(java).exists():
+            print(f"Found Java at: {java}", flush=True)
+            return java
     
-    return "java"  # fallback to PATH
+    # Fallback to 'java' in PATH
+    print(f"Using fallback 'java' in PATH", flush=True)
+    return "java"
 
 
 def download_progress_callback(current, total):

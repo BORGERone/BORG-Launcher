@@ -29,7 +29,7 @@ DEFAULT_CONFIG = {
     "nickname": "Player",
     "ram_mb": 4096,
     "java_path": "java",
-    "game_dir": "E:/Games/test",
+    "game_dir": "",
     "last_version": "neoforge-21.1.227",
     "window_width": 1200,
     "window_height": 700

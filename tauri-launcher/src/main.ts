@@ -79,7 +79,7 @@ function buildConfig() {
     [CONFIG_KEYS.nickname]: nicknameInput?.value?.trim() || "Player",
     [CONFIG_KEYS.ram_mb]: ramMB,
     [CONFIG_KEYS.last_version]: versionSelect?.value || "neoforge-21.1.227",
-    [CONFIG_KEYS.game_dir]: gameDirInput?.value || "E:/Games/test",
+    [CONFIG_KEYS.game_dir]: gameDirInput?.value || "",
     [CONFIG_KEYS.window_width]: 1200,
     [CONFIG_KEYS.window_height]: 700,
     [CONFIG_KEYS.autosync_mods]: autosyncToggle?.checked !== undefined ? autosyncToggle.checked : true, // Default to true
@@ -347,7 +347,7 @@ function setupEvents() {
     if (ramInput) ramInput.value = originalConfig.ram || "4";
     if (ramValue) ramValue.textContent = originalConfig.ram || "4";
     if (versionSelect) versionSelect.value = originalConfig.version || "neoforge-21.1.227";
-    if (gameDirInput) gameDirInput.value = originalConfig.gameDir || "E:/Games/test";
+    if (gameDirInput) gameDirInput.value = originalConfig.gameDir || "";
     if (autosyncToggle) autosyncToggle.checked = originalConfig.autosync || false;
     settingsModal?.classList.remove("active");
   });
@@ -363,7 +363,7 @@ function setupEvents() {
 
   // Open mods folder
   btnOpenMods?.addEventListener("click", async () => {
-    const gameDir = gameDirInput?.value || "E:/Games/test";
+    const gameDir = gameDirInput?.value || "";
     const modsPath = `${gameDir}\\mods`.replace(/\//g, '\\');
     try {
       const command = new Command('cmd', ['/c', 'explorer', modsPath]);
@@ -376,7 +376,7 @@ function setupEvents() {
 
   // Open screenshots folder
   btnOpenScreenshots?.addEventListener("click", async () => {
-    const gameDir = gameDirInput?.value || "E:/Games/test";
+    const gameDir = gameDirInput?.value || "";
     const screenshotsPath = `${gameDir}\\screenshots`.replace(/\//g, '\\');
     try {
       const command = new Command('cmd', ['/c', 'explorer', screenshotsPath]);
@@ -421,7 +421,7 @@ async function loadConfig() {
     if (ramInput) ramInput.value = String(ramGB);
     if (ramValue) ramValue.textContent = String(ramGB);
     if (versionSelect) versionSelect.value = config.last_version || "neoforge-21.1.227";
-    if (gameDirInput) gameDirInput.value = config.game_dir || "E:/Games/test";
+    if (gameDirInput) gameDirInput.value = config.game_dir || "";
     if (autosyncToggle) autosyncToggle.checked = config.autosync_mods !== undefined ? config.autosync_mods : true; // Default to true if not set
 
     log(`Config loaded: ${ramGB}GB RAM`);
@@ -432,7 +432,7 @@ async function loadConfig() {
     if (ramInput) ramInput.value = "4";
     if (ramValue) ramValue.textContent = "4";
     if (versionSelect) versionSelect.value = "neoforge-21.1.227";
-    if (gameDirInput) gameDirInput.value = "E:/Games/test";
+    if (gameDirInput) gameDirInput.value = "";
     if (autosyncToggle) autosyncToggle.checked = true; // Default to true
   }
 }
@@ -706,7 +706,7 @@ async function fixBuild() {
   if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
   
   try {
-    const gameDir = gameDirInput?.value || "E:/Games/test";
+    const gameDir = gameDirInput?.value || "";
     
     // Clear mods folder (30% progress)
     log("Clearing mods folder...");

@@ -59,7 +59,7 @@ async function loadConfig() {
     if (ramInput) ramInput.value = String(config.ram_mb || 4096);
     if (ramValue) ramValue.textContent = String(config.ram_mb || 4096);
     if (versionSelect) versionSelect.value = config.last_version || "neoforge-21.1.227";
-    if (gameDirInput) gameDirInput.value = config.game_dir || "E:/Games/test";
+    if (gameDirInput) gameDirInput.value = config.game_dir || "";
     
   } catch (e) {
     console.error("Failed to load config:", e);
@@ -73,7 +73,7 @@ async function saveSettings() {
       nickname: nicknameInput?.value || "Player",
       ram_mb: parseInt(ramInput?.value || "4096"),
       last_version: versionSelect?.value || "neoforge-21.1.227",
-      game_dir: gameDirInput?.value || "E:/Games/test",
+      game_dir: gameDirInput?.value || "",
       window_width: currentConfig.window_width || 1200,
       window_height: currentConfig.window_height || 700,
     };
@@ -119,7 +119,7 @@ async function launchGame() {
       nickname: currentConfig.nickname || "Player",
       ramMb: currentConfig.ram_mb || 4096,
       version: currentConfig.last_version || "neoforge-21.1.227",
-      gameDir: currentConfig.game_dir || "E:/Games/test"
+      gameDir: currentConfig.game_dir || ""
     });
     log(result as string);
   } catch (e: any) {
@@ -131,7 +131,7 @@ async function installGame() {
   log("Installing Minecraft...");
   try {
     const result = await invoke("install_game_simple", {
-      gameDir: currentConfig.game_dir || "E:/Games/test"
+      gameDir: currentConfig.game_dir || ""
     });
     log(result as string);
   } catch (e: any) {
@@ -143,7 +143,7 @@ async function syncMods() {
   log("Syncing mods...");
   try {
     const result = await invoke("sync_mods_simple", {
-      gameDir: currentConfig.game_dir || "E:/Games/test"
+      gameDir: currentConfig.game_dir || ""
     });
     log(result as string);
   } catch (e: any) {

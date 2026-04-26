@@ -91,6 +91,55 @@ fn extract_launcher_files() -> Result<(), String> {
     Ok(())
 }
 
+// Install Python dependencies if not already installed
+fn install_python_dependencies() -> Result<(), String> {
+    let config_dir = get_config_dir();
+    let marker_file = Path::new(&config_dir).join(".dependencies_installed");
+    
+    // Check if dependencies are already installed
+    if marker_file.exists() {
+        return Ok(());
+    }
+    
+    // Check if minecraft_launcher_lib is installed
+    let mut cmd = Command::new("python");
+    cmd.args(&["-c", "import minecraft_launcher_lib"]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    if cmd.output().map(|o| o.status.success()).unwrap_or(false) {
+        // Dependencies already installed, just create marker
+        fs::write(&marker_file, "").map_err(|e| format!("Failed to create marker: {}", e))?;
+        return Ok(());
+    }
+    
+    // Install minecraft_launcher_lib
+    let mut cmd = Command::new("python");
+    cmd.args(&["-m", "pip", "install", "minecraft_launcher_lib"]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
+        .map_err(|e| format!("Failed to run pip install: {}", e))?;
+    
+    if output.status.success() {
+        // Create marker file
+        fs::write(&marker_file, "").map_err(|e| format!("Failed to create marker: {}", e))?;
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("Failed to install dependencies: {}", stderr))
+    }
+}
+
 // Get the base directory where the launcher is located
 fn get_launcher_dir() -> String {
     // In dev mode, use project root; in release, use AppData
@@ -104,6 +153,11 @@ fn get_launcher_dir() -> String {
         // Extract files on first run
         if let Err(e) = extract_launcher_files() {
             eprintln!("Failed to extract launcher files: {}", e);
+        }
+        
+        // Install Python dependencies on first run
+        if let Err(e) = install_python_dependencies() {
+            eprintln!("Failed to install Python dependencies: {}", e);
         }
         
         // Return parent directory of launcher (for PYTHONPATH)
@@ -295,7 +349,7 @@ impl Default for LauncherConfig {
             nickname: String::from("Player"),
             ram_mb: 4096,
             java_path: String::from("java"),
-            game_dir: String::from("E:/Games/test"),
+            game_dir: String::from(""),
             last_version: String::from("neoforge-21.1.227"),
             window_width: 1200,
             window_height: 700,
@@ -853,21 +907,32 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
     // Download each mod
     let mut downloaded = 0;
     let mut skipped = 0;
-    let total_mods = index.files.iter().filter(|f| f.path.starts_with("mods/")).count();
+    let total_mods = index.files.iter().filter(|f| f.path.starts_with("mods/") || f.path.starts_with("shaderpacks/")).count();
     
     emit_progress(&window, format!("Starting download of {} mods...", total_mods));
     
     for (_index, file) in index.files.iter().enumerate() {
-        // Only process files in mods directory
-        if !file.path.starts_with("mods/") {
+        // Only process files in mods or shaderpacks directory
+        if !file.path.starts_with("mods/") && !file.path.starts_with("shaderpacks/") {
             continue;
         }
+        
+        // Determine target directory based on path
+        let target_dir = if file.path.starts_with("shaderpacks/") {
+            Path::new(&game_dir).join("shaderpacks")
+        } else {
+            mods_dir.clone()
+        };
+        
+        // Create target directory if needed
+        fs::create_dir_all(&target_dir)
+            .map_err(|e| format!("Failed to create directory {}: {}", target_dir.display(), e))?;
         
         // Get download URL (prefer first one)
         if let Some(download_url) = file.downloads.first() {
             // Extract filename from path
             let filename = file.path.split('/').last().unwrap_or(&file.path);
-            let mod_path = mods_dir.join(filename);
+            let mod_path = target_dir.join(filename);
             
             // Check if file already exists and hash matches
             if mod_path.exists() {
@@ -913,11 +978,30 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
             }
         }
     }
-
+    
     let final_progress = create_progress_bar(downloaded + skipped, total_mods);
     emit_progress_update(&window, format!("{}   Complete!", final_progress));
     
+    let _ = copy_servers_dat(&game_dir);
+    
+    // Sync fancymenu from GitHub after mods sync
+    let _ = sync_fancymenu_from_github(game_dir.clone()).await;
+    
     Ok(format!("Downloaded {} mods, skipped {} existing mods from MRpack", downloaded, skipped))
+}
+
+// Copy servers.dat from dop folder to game directory
+fn copy_servers_dat(game_dir: &str) -> Result<(), String> {
+    let dop_dir = get_launcher_dir();
+    let source_file = Path::new(&dop_dir).join("dop").join("servers.dat");
+    let target_file = Path::new(game_dir).join("servers.dat");
+    
+    if source_file.exists() {
+        fs::copy(&source_file, &target_file)
+            .map_err(|e| format!("Failed to copy servers.dat: {}", e))?;
+    }
+    
+    Ok(())
 }
 
 #[tauri::command]
