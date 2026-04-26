@@ -1,4 +1,7 @@
 # BORG Minecraft Launcher
+<p align="center">
+<img width="300" height="300" alt="B2" src="https://github.com/user-attachments/assets/546759b2-47bb-4c13-8120-bcfc92b0e4bd" />
+</p>
 
 ---
 
@@ -42,13 +45,18 @@ BORG Minecraft Launcher - современный лаунчер для Minecraft
 
 ### Требования
 - Windows 10 или новее
-- Java 17 или новее (для запуска Minecraft)
+- [Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html) или новее (для запуска Minecraft)
+- [Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)
 - Интернет-соединение для синхронизации модов
 
 ### Запуск
 1. Скачайте последнюю версию из раздела Releases
 2. Распакуйте архив в любую папку
 3. Запустите `BORG-Launcher.exe`
+4. Перейдите в настройики
+5. Выберите папку в пункте "Директория игры"
+6. Выберите версию игры
+7. Нажмите кнопку "Установить"
 
 ---
 
