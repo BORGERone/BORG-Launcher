@@ -337,6 +337,13 @@ struct ModrinthFile {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+struct GitHubRelease {
+    tag_name: String,
+    html_url: String,
+    name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct ModrinthHashes {
     sha1: Option<String>,
     sha512: Option<String>,
@@ -871,6 +878,7 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
         .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
     // Extract overrides folder
+    let mut overrides_jar_files: std::collections::HashSet<String> = std::collections::HashSet::new();
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).map_err(|e| format!("Failed to access file in archive: {}", e))?;
         let file_path = file.name();
@@ -884,6 +892,12 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
             // Skip directories
             if file.name().ends_with('/') {
                 continue;
+            }
+            
+            // Track .jar files in overrides that go to mods/
+            if relative_path.starts_with("mods/") && relative_path.ends_with(".jar") {
+                let filename = relative_path.split('/').last().unwrap_or(relative_path);
+                overrides_jar_files.insert(filename.to_string());
             }
             
             // Create target path in game directory
@@ -982,6 +996,48 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
     let final_progress = create_progress_bar(downloaded + skipped, total_mods);
     emit_progress_update(&window, format!("{}   Complete!", final_progress));
     
+    // Remove extra .jar files not in the modpack
+    emit_progress(&window, "Checking for extra mods...".to_string());
+    
+    // Collect expected mod filenames from index
+    let mut expected_mods: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for file in index.files.iter() {
+        if file.path.starts_with("mods/") {
+            let filename = file.path.split('/').last().unwrap_or(&file.path);
+            expected_mods.insert(filename.to_string());
+        }
+    }
+    
+    // Also include .jar files from overrides that go to mods/
+    for jar_file in overrides_jar_files.iter() {
+        expected_mods.insert(jar_file.clone());
+    }
+    
+    // Scan mods directory for .jar files
+    let mut removed_count = 0;
+    if let Ok(entries) = fs::read_dir(&mods_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("jar") {
+                    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                        if !expected_mods.contains(filename) {
+                            // Delete extra mod
+                            if fs::remove_file(&path).is_ok() {
+                                removed_count += 1;
+                                emit_progress_update(&window, format!("Removed extra mod: {}", filename));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if removed_count > 0 {
+        emit_progress(&window, format!("Removed {} extra mod(s)", removed_count));
+    }
+    
     let _ = download_servers_dat(&game_dir).await;
     
     // Sync config folder from GitHub after mods sync
@@ -1014,6 +1070,64 @@ async fn download_servers_dat(game_dir: &str) -> Result<(), String> {
     }
     
     Ok(())
+}
+
+// Current launcher version
+const LAUNCHER_VERSION: &str = "1.1.0";
+
+// Parse version string (e.g., "v2.1.0" -> (2, 1, 0))
+fn parse_version(version: &str) -> Option<(u32, u32, u32)> {
+    let version = version.trim_start_matches('v');
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() >= 3 {
+        let major = parts[0].parse::<u32>().ok()?;
+        let minor = parts[1].parse::<u32>().ok()?;
+        let patch = parts[2].parse::<u32>().ok()?;
+        Some((major, minor, patch))
+    } else {
+        None
+    }
+}
+
+// Check if update is available (major or minor version differs)
+fn is_update_available(current: &str, latest: &str) -> bool {
+    if let (Some((curr_major, curr_minor, _)), Some((lat_major, lat_minor, _))) = 
+        (parse_version(current), parse_version(latest)) {
+        lat_major > curr_major || (lat_major == curr_major && lat_minor > curr_minor)
+    } else {
+        false
+    }
+}
+
+// Get current launcher version
+#[tauri::command]
+fn get_launcher_version() -> String {
+    LAUNCHER_VERSION.to_string()
+}
+
+// Check for launcher updates from GitHub
+#[tauri::command]
+async fn check_for_updates() -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let url = "https://api.github.com/repos/BORGERone/BORG-Launcher/releases/latest";
+    
+    let response = client
+        .get(url)
+        .header("User-Agent", "BORG-Launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch release info: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("GitHub API returned status: {}", response.status()));
+    }
+    
+    let release: GitHubRelease = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse release info: {}", e))?;
+    
+    Ok(serde_json::to_string(&release).map_err(|e| format!("Failed to serialize release: {}", e))?)
 }
 
 #[tauri::command]
@@ -1180,6 +1294,8 @@ fn main() {
             download_github_file,
             download_github_folder,
             sync_config_from_github,
+            check_for_updates,
+            get_launcher_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

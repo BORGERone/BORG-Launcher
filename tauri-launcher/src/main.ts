@@ -102,11 +102,21 @@ async function init() {
   getElements();
   setupEvents();
   await loadConfig();
+  await fetchLauncherVersion(); // Fetch version from Rust backend
+  updateFooterVersion(); // Update footer with fetched version
   await loadNews();
   assignRandomAnimations();
   setupImageModal();
   checkServerStatus();
   log("Launcher ready");
+}
+
+// Update footer version
+function updateFooterVersion() {
+  const footerLink = document.querySelector('.footer-link') as HTMLAnchorElement;
+  if (footerLink) {
+    footerLink.textContent = `BORG Minecraft Launcher v${LAUNCHER_VERSION}`;
+  }
 }
 
 // Assign random animations to pylons 3 and 4
@@ -182,9 +192,96 @@ function parseMarkdown(markdown: string): string {
   return html;
 }
 
+// Current launcher version (will be fetched from Rust)
+let LAUNCHER_VERSION = "1.1.0";
+
+// Fetch launcher version from Rust backend
+async function fetchLauncherVersion() {
+  try {
+    LAUNCHER_VERSION = await invoke("get_launcher_version") as string;
+    log(`Launcher version: ${LAUNCHER_VERSION}`);
+  } catch (e) {
+    log(`Failed to fetch launcher version: ${e}`);
+  }
+}
+
+// Parse version string (e.g., "v2.1.0" -> (2, 1, 0))
+function parseVersion(version: string): [number, number, number] | null {
+  const versionStr = version.startsWith('v') ? version.substring(1) : version;
+  const parts = versionStr.split('.');
+  if (parts.length >= 3) {
+    const major = parseInt(parts[0]);
+    const minor = parseInt(parts[1]);
+    const patch = parseInt(parts[2]);
+    if (!isNaN(major) && !isNaN(minor) && !isNaN(patch)) {
+      return [major, minor, patch];
+    }
+  }
+  return null;
+}
+
+// Check if update is available (major or minor version differs)
+function isUpdateAvailable(current: string, latest: string): boolean {
+  const currentVer = parseVersion(current);
+  const latestVer = parseVersion(latest);
+  
+  if (currentVer && latestVer) {
+    const [currMajor, currMinor] = currentVer;
+    const [latMajor, latMinor] = latestVer;
+    return latMajor > currMajor || (latMajor === currMajor && latMinor > currMinor);
+  }
+  return false;
+}
+
 // Load news from GitHub or local file
 async function loadNews() {
   try {
+    // Check for updates first
+    let updateAvailable = false;
+    let updateInfo: any = null;
+    
+    try {
+      const releaseJson = await invoke("check_for_updates") as string;
+      updateInfo = JSON.parse(releaseJson);
+      
+      if (updateInfo && updateInfo.tag_name) {
+        updateAvailable = isUpdateAvailable(LAUNCHER_VERSION, updateInfo.tag_name);
+        log(`Current version: ${LAUNCHER_VERSION}, Latest: ${updateInfo.tag_name}, Update available: ${updateAvailable}`);
+      }
+    } catch (e) {
+      log(`Failed to check for updates: ${e}`);
+    }
+    
+    // If update is available, show update notification instead of news
+    if (updateAvailable && updateInfo) {
+      const updateHtml = `
+        <div style="padding: 20px; background: rgba(76, 175, 80, 0.1); border: 2px solid #4CAF50; border-radius: 8px; margin: 10px 0;">
+          <h2 style="color: #4CAF50; margin-top: 0;">🎉 Доступно обновление!</h2>
+          <p style="font-size: 18px; margin: 10px 0;">
+            Текущая версия: <strong>${LAUNCHER_VERSION}</strong><br>
+            Новая версия: <strong>${updateInfo.tag_name}</strong>
+          </p>
+          <p style="margin: 15px 0;">
+            <a href="https://github.com/BORGERone/BORG-Launcher/releases" 
+               target="_blank" 
+               style="display: inline-block; padding: 12px 24px; background: #4CAF50; color: white; 
+                      text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Скачать обновление
+            </a>
+          </p>
+          <p style="font-size: 14px; color: #888; margin-top: 10px;">
+            Обновление включает новые функции и исправления ошибок.
+          </p>
+        </div>
+      `;
+      if (newsContent) {
+        newsContent.innerHTML = updateHtml;
+      }
+      log("Update notification displayed");
+      return;
+    }
+    
+    // No update available, load normal news
     const newsUrl = DEFAULT_NEWS_URL;
     log(`Loading news from: ${newsUrl}`);
     
