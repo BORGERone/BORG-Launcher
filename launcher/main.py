@@ -90,6 +90,10 @@ def launch_minecraft(version_id, username, ram_mb, game_dir=None):
             "jvmArguments": [
                 f"-Xmx{ram_mb}M",
                 f"-Xms{ram_mb}M",
+                "-XX:+ZGenerational",
+                "-XX:+AlwaysPreTouch",
+                "-XX:+UseStringDeduplication",
+                "-XX:+DisableExplicitGC",
             ],
             "executablePath": java_path,
         }
