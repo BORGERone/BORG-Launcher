@@ -9,6 +9,11 @@
 
 BORG Minecraft Launcher - современный лаунчер для Minecraft с поддержкой модпаков Modrinth (.mrpack). Лаунчер написан на Rust с использованием Tauri, что обеспечивает высокую производительность и надежность.
 
+<p align="center">
+<img width="800" height="450" alt="изображение" src="https://github.com/user-attachments/assets/fde2c2c1-cd47-4a41-aab9-b02db8b80546" />
+</p>
+
+
 ---
 
 ## Зависимости
