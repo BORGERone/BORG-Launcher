@@ -1,6 +1,6 @@
 # BORG Minecraft Launcher
 <p align="center">
-<img width="300" height="300" alt="B2" src="[https://github.com/user-attachments/assets/546759b2-47bb-4c13-8120-bcfc92b0e4bd](https://github.com/BORGERone/BORG-Launcher/blob/main/B2.png)" />
+<img width="300" height="300" alt="B2" src="https://github.com/user-attachments/assets/546759b2-47bb-4c13-8120-bcfc92b0e4bd" />
 </p>
 
 ---
