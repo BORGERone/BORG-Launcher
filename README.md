@@ -26,6 +26,24 @@ BORG Minecraft Launcher - современный лаунчер для Minecraft
 | **[Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)** | Необходима для запуска Minecraft |
 | **[Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)** | Необходима для работы с некоторыми скриптами |
 
+---
+
+## Установка
+
+### Требования
+- Windows 10 или новее
+- [Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html) или новее (для запуска Minecraft)
+- [Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)
+- Интернет-соединение для синхронизации модов
+
+### Запуск
+1. Запустите `BORG-Launcher.exe`
+2. Перейдите в настройики
+3. Выберите папку в пункте "Директория игры"
+4. Если майнкрафт не установлен в эту папку, скачайте его через кнопку "Установить"
+
+---
+
 ## Основные возможности
 
 ### Управление модами
@@ -46,24 +64,6 @@ BORG Minecraft Launcher - современный лаунчер для Minecraft
 - Log с прогресс-баром синхронизации
 - Копирование и очистка лога
 - Системный трей для быстрого доступа
-
----
-
-## Установка
-
-### Требования
-- Windows 10 или новее
-- [Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html) или новее (для запуска Minecraft)
-- [Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)
-- Интернет-соединение для синхронизации модов
-
-### Запуск
-1. Запустите `BORG-Launcher.exe`
-2. Перейдите в настройики
-3. Выберите папку в пункте "Директория игры"
-4. Если майнкрафт не установлен в эту папку, скачайте его через кнопку "Установить"
-
----
 
 ## Использование
 
