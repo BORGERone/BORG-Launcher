@@ -5,7 +5,7 @@
 
 Мы обосновались за 2000 блоков от спавна, в прекрасном месте, которое Илья облагораживает день (и ночь), скриншот ниже тому подтверждение.
 
-<img width="720" height="380" alt="2026-04-29_20 04 45" src="https://github.com/user-attachments/assets/af11f7d4-4c30-4679-a3dc-b736473ac1a6" />
+<img width="50" height="50" alt="2026-04-29_20 04 45" src="https://github.com/user-attachments/assets/af11f7d4-4c30-4679-a3dc-b736473ac1a6" />
 
 
 
