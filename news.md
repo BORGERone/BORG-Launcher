@@ -5,7 +5,7 @@
 
 Мы обосновались за 2000 блоков от спавна, в прекрасном месте, которое Илья облагораживает день (и ночь), скриншот ниже тому подтверждение.123
 
-![Minecraft Icon](https://github.com/BORGERone/BORG-Launcher/blob/main/Screen/Jaba.png)
+![Minecraft Icon](https://psv4.userapi.com/s/v1/d2/wQ4nNl4C1R8bRyFcilc__u2bdx6FPUNZKTDRnlBeax5JSRl_OZaiGqwHrF7HF1GuStBIetONgLMHz73vfLLbgXAUKJccRhoy3MsXnVuiN_Xrxcl5F-5yAM3X1u9jEhegZ39g9YQpFeCX/2026-04-29_20_04_44.png)
 
 
 
