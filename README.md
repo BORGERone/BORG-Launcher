@@ -1,6 +1,7 @@
 # BORG Minecraft Launcher
 <p align="center">
-<img width="300" height="300" alt="B2" src="https://github.com/user-attachments/assets/546759b2-47bb-4c13-8120-bcfc92b0e4bd" />
+<img width="250" height="250" alt="B4" src="https://github.com/user-attachments/assets/8b86024d-efd9-4709-a190-13a749c78915" />
+
 </p>
 
 ---
@@ -8,6 +9,13 @@
 ## Описание
 
 BORG Minecraft Launcher - современный лаунчер для Minecraft с поддержкой модпаков Modrinth (.mrpack). Лаунчер написан на Rust с использованием Tauri, что обеспечивает высокую производительность и надежность.
+
+<p align="center">
+
+<img width="800" height="450" alt="ezgif-7613c1cab430bb50" src="https://github.com/user-attachments/assets/99dcddc5-7f5f-4da6-945d-236365d31665" />
+
+</p>
+
 
 ---
 
@@ -17,6 +25,24 @@ BORG Minecraft Launcher - современный лаунчер для Minecraft
 |--------|-------------|
 | **[Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)** | Необходима для запуска Minecraft |
 | **[Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)** | Необходима для работы с некоторыми скриптами |
+
+---
+
+## Установка
+
+### Требования
+- Windows 10 или новее
+- [Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html) или новее (для запуска Minecraft)
+- [Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)
+- Интернет-соединение для синхронизации модов
+
+### Запуск
+1. Запустите `BORG-Launcher.exe`
+2. Перейдите в настройики
+3. Выберите папку в пункте "Директория игры"
+4. Если майнкрафт не установлен в эту папку, скачайте его через кнопку "Установить"
+
+---
 
 ## Основные возможности
 
@@ -38,27 +64,6 @@ BORG Minecraft Launcher - современный лаунчер для Minecraft
 - Log с прогресс-баром синхронизации
 - Копирование и очистка лога
 - Системный трей для быстрого доступа
-
----
-
-## Установка
-
-### Требования
-- Windows 10 или новее
-- [Java 21](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html) или новее (для запуска Minecraft)
-- [Python 3.12](https://apps.microsoft.com/detail/9ncvdn91xzqp?hl=ru-RU&gl=US)
-- Интернет-соединение для синхронизации модов
-
-### Запуск
-1. Скачайте последнюю версию из раздела Releases
-2. Распакуйте архив в любую папку
-3. Запустите `BORG-Launcher.exe`
-4. Перейдите в настройики
-5. Выберите папку в пункте "Директория игры"
-6. Выберите версию игры
-7. Нажмите кнопку "Установить"
-
----
 
 ## Использование
 
@@ -82,36 +87,22 @@ BORG Minecraft Launcher - современный лаунчер для Minecraft
 
 ---
 
-## Troubleshooting
+## Ошибки
 
 ### Моды не скачиваются
 - Проверьте интернет-соединение, отключите VPN
-- Убедитесь, что MRpack файл доступен на GitHub
 - Проверьте Battle Log на наличие ошибок
+
+### Установка игры зависает на 95%
+- Проверьте можете ли вы качать сборки с [официального сайта NeoForge](https://neoforged.net/)
+- Проверьте интернет-соединение, отключите VPN
 
 ### Игра не запускается
 - Убедитесь, что Java установлена и работает
-- Проверьте путь к Java в настройках
 - Убедитесь, что версия Minecraft установлена
-
-### Ошибка 404 при загрузке новостей
-- Файл новостей может отсутствовать на GitHub
-- Лаунчер автоматически использует локальную копию
 
 ---
 
-## Файлы и папки
-
-### Структура проекта
-```
-BORGLauncher/
-├── tauri-launcher/          # Основной код лаунчера
-│   ├── src/                 # Frontend (HTML/CSS/TypeScript)
-│   └── src-tauri/           # Backend (Rust)
-├── config.json              # Конфигурация лаунчера
-├── news.md                  # Локальный файл новостей
-└── README.md                # Этот файл
-```
 
 ### Конфигурация
 - `config.json` - настройки лаунчера (никнейм, RAM, пути)
@@ -123,7 +114,6 @@ BORGLauncher/
 
 ### Требования для разработки
 - Rust 1.70+
-- Node.js 18+
 - npm или yarn
 
 ### Сборка
@@ -148,11 +138,3 @@ npm run tauri dev
 
 ---
 
-## Changelog
-
-### Версия 1.0
-- Полный перепис на Rust + Tauri
-- Поддержка Modrinth MRpack файлов
-- Прогресс-бар синхронизации модов
-- Современный интерфейс
-- Системный трей
