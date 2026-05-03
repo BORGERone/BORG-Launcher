@@ -302,21 +302,6 @@ function isUpdateAvailable(current: string, latest: string): boolean {
          (lat.major === curr.major && lat.minor > curr.minor);
 }
 
-// Parse version string (e.g., "v2.1.0" -> (2, 1, 0))
-function parseVersion(version: string): [number, number, number] | null {
-  const versionStr = version.startsWith('v') ? version.substring(1) : version;
-  const parts = versionStr.split('.');
-  if (parts.length >= 3) {
-    const major = parseInt(parts[0]);
-    const minor = parseInt(parts[1]);
-    const patch = parseInt(parts[2]);
-    if (!isNaN(major) && !isNaN(minor) && !isNaN(patch)) {
-      return [major, minor, patch];
-    }
-  }
-  return null;
-}
-
 // Load news from GitHub or local file
 async function loadNews() {
   try {
@@ -802,7 +787,6 @@ let fileCountingInterval: number | null = null;
 function startSmoothProgress() {
   smoothProgressInterval = window.setInterval(() => {
     const currentWidth = parseInt(installProgressBar?.style.width || "0");
-    const welcomeCurrentWidth = parseInt(welcomeInstallProgressBar?.style.width || "0");
     if (currentWidth < 95) {
       const newWidth = Math.min(95, currentWidth + 1); // Add 1% every second
       if (installProgressBar) installProgressBar.style.width = `${newWidth}%`;
