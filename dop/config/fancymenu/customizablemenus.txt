@@ -1,0 +1,23 @@
+type = customizablemenus
+
+net.minecraft.client.gui.screens.TitleScreen {
+}
+
+de.keksuccino.drippyloadingscreen.customization.DrippyOverlayScreen {
+}
+
+net.minecraft.client.gui.screens.options.OptionsScreen {
+}
+
+me.flashyreese.mods.reeses_sodium_options.client.gui.SodiumVideoOptionsScreen {
+}
+
+net.minecraft.client.gui.screens.ConnectScreen {
+}
+
+net.minecraft.client.gui.screens.PauseScreen {
+}
+
+net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen {
+}
+
