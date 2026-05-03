@@ -151,6 +151,66 @@
       </div>
     </div>
 
+    <!-- Welcome Modal - First Launch Setup -->
+    <div class="modal" id="welcome-modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-island welcome-island">
+        <div class="modal-island-header">
+          <h2 class="welcome-title">Добро пожаловать в BORG Launcher</h2>
+          <button class="btn-close" id="btn-close-welcome">&times;</button>
+        </div>
+        <div class="modal-island-body">
+          <div class="welcome-content">
+            <div class="welcome-section">
+              <div class="welcome-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </div>
+              <div class="welcome-section-content">
+                <p class="welcome-text">Укажите путь к Minecraft</p>
+                <div class="path-input island-input">
+                  <input type="text" id="welcome-game-dir" readonly>
+                  <button class="btn-browse" id="welcome-btn-browse">Обзор</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="welcome-divider"></div>
+            
+            <div class="welcome-section">
+              <div class="welcome-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+              <div class="install-content">
+                <p class="welcome-install-text">Скачать Minecraft в выбранную выше папку</p>
+                <div class="install-wrapper" style="position: relative; margin-top: 12px;">
+                  <div class="install-progress" id="welcome-install-progress">
+                    <div class="install-progress-bar" id="welcome-install-progress-bar"></div>
+                  </div>
+                  <button class="btn-glass" id="welcome-btn-install" style="width: 100%; position: relative; z-index: 1;">
+                    <div class="glass-shine"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>Установить</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings Modal - Glass Island Style -->
     <div class="modal" id="settings-modal">
       <div class="modal-backdrop"></div>
@@ -197,8 +257,8 @@
               <div class="input-group">
                 <label for="ram">Память (GB)</label>
                 <div class="hextech-slider">
-                  <input type="range" id="ram" min="2" max="16" value="4" step="1">
-                  <span class="ram-value"><span id="ram-value">4</span> GB</span>
+                  <input type="range" id="ram" min="2" max="16" value="10" step="1">
+                  <span class="ram-value"><span id="ram-value">10</span> GB</span>
                 </div>
               </div>
 

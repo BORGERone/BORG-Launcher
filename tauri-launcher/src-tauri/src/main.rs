@@ -1073,7 +1073,7 @@ async fn download_servers_dat(game_dir: &str) -> Result<(), String> {
 }
 
 // Current launcher version
-const LAUNCHER_VERSION: &str = "1.1.0";
+const LAUNCHER_VERSION: &str = "1.2.0";
 
 // Parse version string (e.g., "v2.1.0" -> (2, 1, 0))
 fn parse_version(version: &str) -> Option<(u32, u32, u32)> {
@@ -1153,6 +1153,20 @@ async fn read_news() -> Result<String, String> {
                 Err(_) => Err(format!("Failed to read news.md from GitHub or local: {}", e)),
             }
         }
+    }
+}
+
+#[tauri::command]
+fn is_first_launch() -> bool {
+    let config_dir = get_config_dir();
+    let first_launch_file = Path::new(&config_dir).join(".first_launch_completed");
+    
+    if first_launch_file.exists() {
+        false
+    } else {
+        // Create marker file to indicate first launch has been shown
+        let _ = fs::write(&first_launch_file, "1");
+        true
     }
 }
 
@@ -1296,6 +1310,7 @@ fn main() {
             sync_config_from_github,
             check_for_updates,
             get_launcher_version,
+            is_first_launch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

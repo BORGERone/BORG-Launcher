@@ -11,6 +11,7 @@ let ramInput: HTMLInputElement;
 let ramValue: HTMLElement;
 let versionSelect: HTMLSelectElement;
 let gameDirInput: HTMLInputElement;
+let welcomeGameDirInput: HTMLInputElement;
 let btnSettings: HTMLElement;
 let btnPlay: HTMLElement;
 let btnInstall: HTMLElement;
@@ -19,10 +20,14 @@ let btnClear: HTMLElement;
 let btnCopy: HTMLElement;
 let logContent: HTMLElement;
 let settingsModal: HTMLElement;
+let welcomeModal: HTMLElement;
 let btnCloseSettings: HTMLElement;
 let btnSaveSettings: HTMLElement;
 let btnCancelSettings: HTMLElement;
+let btnCloseWelcome: HTMLElement;
 let btnBrowse: HTMLElement;
+let welcomeBtnBrowse: HTMLElement;
+let welcomeBtnInstall: HTMLElement;
 let btnOpenMods: HTMLElement;
 let btnOpenScreenshots: HTMLElement;
 let btnFixBuild: HTMLElement;
@@ -32,6 +37,8 @@ let syncProgress: HTMLElement;
 let syncProgressBar: HTMLElement;
 let installProgress: HTMLElement;
 let installProgressBar: HTMLElement;
+let welcomeInstallProgress: HTMLElement;
+let welcomeInstallProgressBar: HTMLElement;
 let statusDot: HTMLElement;
 let serverStatus: HTMLElement;
 let lastProgressLine: HTMLElement | null = null;
@@ -104,11 +111,29 @@ async function init() {
   await loadConfig();
   await fetchLauncherVersion(); // Fetch version from Rust backend
   updateFooterVersion(); // Update footer with fetched version
+  showWelcomeModal(); // Show welcome modal
   await loadNews();
+  await checkForUpdates(); // Check for launcher updates
   assignRandomAnimations();
   setupImageModal();
   checkServerStatus();
   log("Launcher ready");
+}
+
+// Show welcome modal
+async function showWelcomeModal() {
+  try {
+    const isFirstLaunch = await invoke("is_first_launch") as boolean;
+    if (isFirstLaunch && welcomeModal) {
+      welcomeModal.classList.add("active");
+    }
+  } catch (e) {
+    console.error("Failed to check first launch:", e);
+    // Fallback: show modal if there's an error (for testing)
+    if (welcomeModal) {
+      welcomeModal.classList.add("active");
+    }
+  }
 }
 
 // Update footer version
@@ -153,7 +178,7 @@ function parseMarkdown(markdown: string): string {
 
   // Images and videos (must be before links to avoid conflict)
   html = html.replace(/!\[([^\]]*)\]\(([^)]+\.mp4)\)/g, '<video src="$2" controls style="max-width: 100%; border-radius: 8px; margin: 12px 0;"></video>');
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 8px; margin: 12px 0; cursor: pointer;" class="news-image">');
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+?)\s*('[^']*')?\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 8px; margin: 12px 0; cursor: pointer;" class="news-image">');
 
   // Headers
   html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
@@ -205,6 +230,78 @@ async function fetchLauncherVersion() {
   }
 }
 
+// Check for launcher updates
+async function checkForUpdates() {
+  try {
+    const result = await invoke("check_for_updates") as string;
+    const release = JSON.parse(result);
+    
+    // Parse version from tag_name (e.g., "v1.2.0")
+    const latestVersion = release.tag_name.replace(/^v/, '');
+    
+    // Compare versions
+    if (isUpdateAvailable(LAUNCHER_VERSION, latestVersion)) {
+      // Show update notification in news
+      if (newsContent) {
+        const updateHtml = `
+          <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(128, 232, 191, 0.1)); 
+                      border: 1px solid rgba(34, 197, 94, 0.3); 
+                      border-radius: 12px; 
+                      padding: 16px; 
+                      margin: 16px 0;">
+            <h3 style="color: #22c55e; margin: 0 0 12px 0; font-size: 16px;">
+              🎉 Доступно обновление BORG Launcher!
+            </h3>
+            <p style="color: #e2e8f0; margin: 0 0 12px 0; line-height: 1.5;">
+              Текущая версия: <strong style="color: #94a3b8;">v${LAUNCHER_VERSION}</strong><br>
+              Новая версия: <strong style="color: #22c55e;">v${latestVersion}</strong>
+            </p>
+            <a href="${release.html_url}" target="_blank" 
+               style="display: inline-block; 
+                      background: linear-gradient(135deg, #22c55e, rgba(128, 232, 191, 0.8)); 
+                      color: white; 
+                      padding: 8px 16px; 
+                      border-radius: 6px; 
+                      text-decoration: none; 
+                      font-weight: 600; 
+                      font-size: 12px;
+                      transition: all 0.3s;">
+              Скачать обновление
+            </a>
+          </div>
+        `;
+        
+        // Insert update notification at the beginning of news
+        newsContent.innerHTML = updateHtml + newsContent.innerHTML;
+      }
+      
+      log(`Update available: v${latestVersion}`);
+    } else {
+      log(`Launcher is up to date: v${LAUNCHER_VERSION}`);
+    }
+  } catch (e) {
+    log(`Failed to check for updates: ${e}`);
+  }
+}
+
+// Compare versions (returns true if update is available)
+function isUpdateAvailable(current: string, latest: string): boolean {
+  const parseVersion = (version: string) => {
+    const parts = version.split('.').map(Number);
+    return {
+      major: parts[0] || 0,
+      minor: parts[1] || 0,
+      patch: parts[2] || 0
+    };
+  };
+  
+  const curr = parseVersion(current);
+  const lat = parseVersion(latest);
+  
+  return lat.major > curr.major || 
+         (lat.major === curr.major && lat.minor > curr.minor);
+}
+
 // Parse version string (e.g., "v2.1.0" -> (2, 1, 0))
 function parseVersion(version: string): [number, number, number] | null {
   const versionStr = version.startsWith('v') ? version.substring(1) : version;
@@ -218,19 +315,6 @@ function parseVersion(version: string): [number, number, number] | null {
     }
   }
   return null;
-}
-
-// Check if update is available (major or minor version differs)
-function isUpdateAvailable(current: string, latest: string): boolean {
-  const currentVer = parseVersion(current);
-  const latestVer = parseVersion(latest);
-  
-  if (currentVer && latestVer) {
-    const [currMajor, currMinor] = currentVer;
-    const [latMajor, latMinor] = latestVer;
-    return latMajor > currMajor || (latMajor === currMajor && latMinor > currMinor);
-  }
-  return false;
 }
 
 // Load news from GitHub or local file
@@ -383,6 +467,7 @@ function getElements() {
   ramValue = document.getElementById("ram-value") as HTMLElement;
   versionSelect = document.getElementById("version-select") as HTMLSelectElement;
   gameDirInput = document.getElementById("game-dir") as HTMLInputElement;
+  welcomeGameDirInput = document.getElementById("welcome-game-dir") as HTMLInputElement;
   btnSettings = document.getElementById("btn-settings") as HTMLElement;
   btnPlay = document.getElementById("btn-play") as HTMLElement;
   btnInstall = document.getElementById("btn-install") as HTMLElement;
@@ -391,10 +476,14 @@ function getElements() {
   btnCopy = document.getElementById("btn-copy") as HTMLElement;
   logContent = document.getElementById("log-content") as HTMLElement;
   settingsModal = document.getElementById("settings-modal") as HTMLElement;
+  welcomeModal = document.getElementById("welcome-modal") as HTMLElement;
   btnCloseSettings = document.getElementById("btn-close-settings") as HTMLElement;
   btnSaveSettings = document.getElementById("btn-save-settings") as HTMLElement;
   btnCancelSettings = document.getElementById("btn-cancel-settings") as HTMLElement;
+  btnCloseWelcome = document.getElementById("btn-close-welcome") as HTMLElement;
   btnBrowse = document.getElementById("btn-browse") as HTMLElement;
+  welcomeBtnBrowse = document.getElementById("welcome-btn-browse") as HTMLElement;
+  welcomeBtnInstall = document.getElementById("welcome-btn-install") as HTMLElement;
   btnOpenMods = document.getElementById("btn-open-mods") as HTMLElement;
   btnOpenScreenshots = document.getElementById("btn-open-screenshots") as HTMLElement;
   btnFixBuild = document.getElementById("btn-fix-build") as HTMLElement;
@@ -404,6 +493,8 @@ function getElements() {
   syncProgressBar = document.getElementById("sync-progress-bar") as HTMLElement;
   installProgress = document.getElementById("install-progress") as HTMLElement;
   installProgressBar = document.getElementById("install-progress-bar") as HTMLElement;
+  welcomeInstallProgress = document.getElementById("welcome-install-progress") as HTMLElement;
+  welcomeInstallProgressBar = document.getElementById("welcome-install-progress-bar") as HTMLElement;
   statusDot = document.getElementById("status-dot") as HTMLElement;
   serverStatus = document.getElementById("server-status") as HTMLElement;
   autosyncToggle = document.getElementById("autosync-toggle") as HTMLInputElement;
@@ -434,6 +525,7 @@ function setupEvents() {
     settingsModal?.classList.add("active");
   });
   btnCloseSettings?.addEventListener("click", () => settingsModal?.classList.remove("active"));
+  btnCloseWelcome?.addEventListener("click", () => welcomeModal?.classList.remove("active"));
   btnSaveSettings?.addEventListener("click", () => {
     saveConfig();
     settingsModal?.classList.remove("active");
@@ -456,6 +548,23 @@ function setupEvents() {
       gameDirInput.value = selected.replace(/\\/g, "/");
       saveConfig();
     }
+  });
+
+  // Welcome browse button
+  welcomeBtnBrowse?.addEventListener("click", async () => {
+    const selected = await open({ directory: true });
+    if (selected && typeof selected === "string") {
+      const path = selected.replace(/\\/g, "/");
+      welcomeGameDirInput.value = path;
+      gameDirInput.value = path; // Also update main game dir input
+      saveConfig();
+    }
+  });
+
+  // Welcome install button
+  welcomeBtnInstall?.addEventListener("click", async () => {
+    // Don't hide modal here - it will close when installation completes
+    await installGame();
   });
 
   // Open mods folder
@@ -519,6 +628,7 @@ async function loadConfig() {
     if (ramValue) ramValue.textContent = String(ramGB);
     if (versionSelect) versionSelect.value = config.last_version || "neoforge-21.1.227";
     if (gameDirInput) gameDirInput.value = config.game_dir || "";
+    if (welcomeGameDirInput) welcomeGameDirInput.value = config.game_dir || "";
     if (autosyncToggle) autosyncToggle.checked = config.autosync_mods !== undefined ? config.autosync_mods : true; // Default to true if not set
 
     log(`Config loaded: ${ramGB}GB RAM`);
@@ -526,10 +636,11 @@ async function loadConfig() {
     log("Using defaults");
     // Set default values when config doesn't exist
     if (nicknameInput) nicknameInput.value = "Player";
-    if (ramInput) ramInput.value = "4";
-    if (ramValue) ramValue.textContent = "4";
+    if (ramInput) ramInput.value = "10";
+    if (ramValue) ramValue.textContent = "10";
     if (versionSelect) versionSelect.value = "neoforge-21.1.227";
     if (gameDirInput) gameDirInput.value = "";
+    if (welcomeGameDirInput) welcomeGameDirInput.value = "";
     if (autosyncToggle) autosyncToggle.checked = true; // Default to true
   }
 }
@@ -609,9 +720,11 @@ async function installGame() {
   
   const gameDir = gameDirInput?.value || "E:/Games/test";
   
-  // Show progress bar
+  // Show progress bars (both settings and welcome)
   if (installProgress) installProgress.style.display = "block";
   if (installProgressBar) installProgressBar.style.width = "0%";
+  if (welcomeInstallProgress) welcomeInstallProgress.style.display = "block";
+  if (welcomeInstallProgressBar) welcomeInstallProgressBar.style.width = "0%";
   
   // Immediate progress: 0% -> 2%
   setProgressSafely(2);
@@ -640,10 +753,12 @@ async function installGame() {
     // Set to 100% on completion
     setProgressSafely(100);
     
-    // Hide progress bar after delay
+    // Hide progress bars after delay
     setTimeout(() => {
       if (installProgress) installProgress.style.display = "none";
       if (installProgressBar) installProgressBar.style.width = "0%";
+      if (welcomeInstallProgress) welcomeInstallProgress.style.display = "none";
+      if (welcomeInstallProgressBar) welcomeInstallProgressBar.style.width = "0%";
       
       // Flash green after progress bar is hidden
       if (btnInstall) {
@@ -652,6 +767,20 @@ async function installGame() {
           btnInstall.classList.remove("btn-success-flash");
         }, 1000);
       }
+      
+      // Flash green for welcome install button too
+      if (welcomeBtnInstall) {
+        welcomeBtnInstall.classList.add("btn-success-flash");
+        setTimeout(() => {
+          welcomeBtnInstall.classList.remove("btn-success-flash");
+        }, 1000);
+      }
+      
+      // Close welcome modal if it's open and installation completed
+      if (welcomeModal && welcomeModal.classList.contains("active")) {
+        welcomeModal.classList.remove("active");
+        log("Welcome modal closed - installation completed");
+      }
     }, 2000);
   } catch (e: any) {
     log(`Install error: ${e}`);
@@ -659,9 +788,11 @@ async function installGame() {
     // Stop all progress on error
     stopAllProgress();
     
-    // Hide progress bar on error
+    // Hide progress bars on error
     if (installProgress) installProgress.style.display = "none";
     if (installProgressBar) installProgressBar.style.width = "0%";
+    if (welcomeInstallProgress) welcomeInstallProgress.style.display = "none";
+    if (welcomeInstallProgressBar) welcomeInstallProgressBar.style.width = "0%";
   }
 }
 
@@ -671,9 +802,11 @@ let fileCountingInterval: number | null = null;
 function startSmoothProgress() {
   smoothProgressInterval = window.setInterval(() => {
     const currentWidth = parseInt(installProgressBar?.style.width || "0");
+    const welcomeCurrentWidth = parseInt(welcomeInstallProgressBar?.style.width || "0");
     if (currentWidth < 95) {
       const newWidth = Math.min(95, currentWidth + 1); // Add 1% every second
       if (installProgressBar) installProgressBar.style.width = `${newWidth}%`;
+      if (welcomeInstallProgressBar) welcomeInstallProgressBar.style.width = `${newWidth}%`;
       updateProgressLog(newWidth);
     }
   }, 1000);
@@ -710,6 +843,7 @@ function setProgressSafely(percent: number) {
   const currentWidth = parseInt(installProgressBar?.style.width || "0");
   const newWidth = Math.max(currentWidth, percent); // Never decrease
   if (installProgressBar) installProgressBar.style.width = `${newWidth}%`;
+  if (welcomeInstallProgressBar) welcomeInstallProgressBar.style.width = `${newWidth}%`;
 }
 
 function stopAllProgress() {
