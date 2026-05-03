@@ -6,5 +6,4 @@
 Так-же теперь в списке шейдеров доступен набор шейдеров **Photon**, он должен лучше работать с *штуковинами* из **Create**, если испытываете проблемы с прозрачными шестеренками - <u>попробуйте</u>. 
 Кстати, скрин ниже был сделан с этими шейдерами
 
-![2026-05-02_10.59.12.png]([https://raw.githubusercontent.com/bucketio/img2/main/2026/05/03/1777816111246-f34f6f5d-0536-4bce-afda-012049426a97.png](https://messages-prod.27c852f3500f38c1e7786e2c9ff9e48f.r2.cloudflarestorage.com/7092f190-e2f4-4288-8586-36245b906962/1777815531742-2026-05-02_10.59.12.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=b33de61d4f22a31b59b25364ab5037c5%2F20260503%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260503T133854Z&X-Amz-Expires=3600&X-Amz-Signature=522021e396db317c3c128792d95d1e9d0cc770bbaffaac166a581884e3b190c6&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject) '')
-[Ссылка на пресет для этого шейдера](https://drive.google.com/file/d/10Gn6DYDo-J-hjWO6GB9B7ypLR1KxfL_L/view?usp=sharing)
+![2026-05-02_10.59.12.png](https://raw.githubusercontent.com/bucketio/img7/main/2026/05/03/1777817651096-b6c5c0f4-8228-496b-834c-5b5b78dc3f82.png '2026-05-02_10.59.12.png')
