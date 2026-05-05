@@ -67,6 +67,20 @@ const DEFAULT_NEWS_URL = "https://raw.githubusercontent.com/BORGERone/BORG-Launc
 // Store original values for cancel
 let originalConfig: any = {};
 
+// Simple protection variables
+let settingsButtonLocked = false;
+let browseButtonsLocked = false;
+let isInstalling = false;
+let isSyncing = false;
+let isFixingBuild = false;
+let isPlaying = false;
+let installTimeout: number | null = null;
+let syncTimeout: number | null = null;
+let fixBuildTimeout: number | null = null;
+let installCanInterrupt = false;
+let syncCanInterrupt = false;
+let fixBuildCanInterrupt = false;
+
 // Build config from current field values
 function buildConfig() {
   // RAM: convert GB to MB, but protect against double conversion
@@ -118,6 +132,380 @@ async function init() {
   setupImageModal();
   checkServerStatus();
   log("Launcher ready");
+}
+
+// Process state management functions
+function setInstallingState(state: boolean) {
+  isInstalling = state;
+  installCanInterrupt = false;
+  
+  // Clear existing timeout
+  if (installTimeout) {
+    clearTimeout(installTimeout);
+    installTimeout = null;
+  }
+  
+  // Update button states
+  updateInstallButtonState();
+  updateSyncButtonState();
+}
+
+function setSyncingState(state: boolean) {
+  isSyncing = state;
+  syncCanInterrupt = false;
+  
+  // Clear existing timeout
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
+  
+  // Update button states
+  updateInstallButtonState();
+  updateSyncButtonState();
+}
+
+function updateInstallButtonState() {
+  const installBtn = document.getElementById('btn-install') as HTMLButtonElement;
+  const welcomeInstallBtn = document.getElementById('welcome-btn-install') as HTMLButtonElement;
+  
+  if (isInstalling) {
+    // Disable install buttons and add active class
+    if (installBtn) {
+      installBtn.disabled = true;
+      installBtn.classList.add('btn-active');
+      installBtn.querySelector('span')!.textContent = 'Устанавливается...';
+    }
+    if (welcomeInstallBtn) {
+      welcomeInstallBtn.disabled = true;
+      welcomeInstallBtn.classList.add('btn-active');
+      welcomeInstallBtn.querySelector('span')!.textContent = 'Устанавливается...';
+    }
+  } else {
+    // Enable install buttons and remove active class
+    if (installBtn) {
+      installBtn.disabled = isSyncing; // Disable only if syncing
+      installBtn.classList.remove('btn-active');
+      installBtn.querySelector('span')!.textContent = installCanInterrupt ? 'Прервать' : 'Установить';
+    }
+    if (welcomeInstallBtn) {
+      welcomeInstallBtn.disabled = isSyncing; // Disable only if syncing
+      welcomeInstallBtn.classList.remove('btn-active');
+      welcomeInstallBtn.querySelector('span')!.textContent = installCanInterrupt ? 'Прервать' : 'Установить';
+    }
+  }
+}
+
+function setFixingBuildState(state: boolean) {
+  isFixingBuild = state;
+  fixBuildCanInterrupt = false;
+  
+  // Clear existing timeout
+  if (fixBuildTimeout) {
+    clearTimeout(fixBuildTimeout);
+    fixBuildTimeout = null;
+  }
+  
+  // Update button states
+  updateFixBuildButtonState();
+  updateInstallButtonState();
+  updateSyncButtonState();
+}
+
+function setPlayingState(state: boolean) {
+  isPlaying = state;
+  
+  // Update button states
+  updatePlayButtonState();
+  updateInstallButtonState();
+  updateSyncButtonState();
+  updateFixBuildButtonState();
+}
+
+function updateFixBuildButtonState() {
+  const fixBuildBtn = document.getElementById('btn-fix-build') as HTMLButtonElement;
+  
+  if (isFixingBuild) {
+    // Disable fix build button and add active class
+    if (fixBuildBtn) {
+      fixBuildBtn.disabled = true;
+      fixBuildBtn.classList.add('btn-active');
+      fixBuildBtn.querySelector('span')!.textContent = 'Починка...';
+    }
+  } else {
+    // Enable fix build button and remove active class
+    if (fixBuildBtn) {
+      fixBuildBtn.disabled = isInstalling || isSyncing || isPlaying; // Disable if other processes are active
+      fixBuildBtn.classList.remove('btn-active');
+      fixBuildBtn.querySelector('span')!.textContent = fixBuildCanInterrupt ? 'Прервать' : 'Починить сборку';
+    }
+  }
+}
+
+function updatePlayButtonState() {
+  if (btnPlay) {
+    if (isPlaying) {
+      (btnPlay as HTMLButtonElement).disabled = true;
+      btnPlay.classList.add('btn-playing');
+      // Change PNG images to show playing state
+      const playIdle = btnPlay.querySelector('.play-idle') as HTMLImageElement;
+      const playHover = btnPlay.querySelector('.play-hover') as HTMLImageElement;
+      const playActive = btnPlay.querySelector('.play-active') as HTMLImageElement;
+      if (playIdle) {
+        playIdle.style.opacity = '0';
+      }
+      if (playHover) {
+        playHover.style.opacity = '0';
+      }
+      if (playActive) {
+        playActive.style.opacity = '1';
+      }
+    } else {
+      (btnPlay as HTMLButtonElement).disabled = isInstalling || isSyncing || isFixingBuild; // Disable if other processes are active
+      btnPlay.classList.remove('btn-playing');
+      // Reset PNG images to show idle state
+      const playIdle = btnPlay.querySelector('.play-idle') as HTMLImageElement;
+      const playHover = btnPlay.querySelector('.play-hover') as HTMLImageElement;
+      const playActive = btnPlay.querySelector('.play-active') as HTMLImageElement;
+      if (playIdle) {
+        playIdle.style.opacity = '1';
+      }
+      if (playHover) {
+        playHover.style.opacity = '0';
+      }
+      if (playActive) {
+        playActive.style.opacity = '0';
+      }
+    }
+  }
+}
+
+function handleFixBuildInterrupt() {
+  if (fixBuildCanInterrupt) {
+    log("Fix build interrupted by user");
+    setFixingBuildState(false);
+    // Reset fix build progress
+    const fixBuildProgressBar = document.getElementById('fix-build-progress-bar') as HTMLElement;
+    if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
+  }
+}
+
+function handleInstallInterrupt() {
+  if (installCanInterrupt) {
+    log("Installation interrupted by user");
+    setInstallingState(false);
+    stopAllProgress();
+    // Reset progress bars
+    if (installProgressBar) installProgressBar.style.width = "0%";
+    if (welcomeInstallProgressBar) welcomeInstallProgressBar.style.width = "0%";
+  }
+}
+
+function updateSyncButtonState() {
+  const syncBtn = document.getElementById('btn-sync') as HTMLButtonElement;
+  
+  if (isSyncing) {
+    // Disable sync button and add active class
+    if (syncBtn) {
+      syncBtn.disabled = true;
+      syncBtn.classList.add('btn-active');
+      syncBtn.querySelector('span')!.textContent = 'Синхронизация...';
+    }
+  } else {
+    // Enable sync button and remove active class
+    if (syncBtn) {
+      syncBtn.disabled = isInstalling || isFixingBuild || isPlaying; // Disable if other processes are active
+      syncBtn.classList.remove('btn-active');
+      syncBtn.querySelector('span')!.textContent = syncCanInterrupt ? 'Прервать' : 'синхронизировать моды';
+    }
+  }
+}
+
+function handleSyncInterrupt() {
+  if (syncCanInterrupt) {
+    log("Sync interrupted by user");
+    setSyncingState(false);
+    // Reset sync progress
+    const syncProgressBar = document.getElementById('sync-progress-bar') as HTMLElement;
+    if (syncProgressBar) syncProgressBar.style.width = "0%";
+  }
+}
+
+// Protected button click handlers
+async function handleInstallClick() {
+  if (isInstalling) {
+    // Already installing, ignore
+    return;
+  }
+  
+  if (installCanInterrupt) {
+    // Can interrupt, handle interruption
+    handleInstallInterrupt();
+    return;
+  }
+  
+  if (isSyncing) {
+    // Sync is active, cannot install
+    return;
+  }
+  
+  if (isFixingBuild) {
+    // Fix build is active, cannot install
+    return;
+  }
+  
+  if (isPlaying) {
+    // Game is launching, cannot install
+    return;
+  }
+  
+  // Start installation
+  setInstallingState(true);
+  installCanInterrupt = false;
+  
+  // Set up 5-second interrupt window
+  installTimeout = window.setTimeout(() => {
+    installCanInterrupt = true;
+    updateInstallButtonState(); // Update button to show "Прервать"
+    log("Installation can now be interrupted");
+  }, 5000);
+  
+  try {
+    await installGame();
+  } catch (e) {
+    log(`Installation failed: ${e}`);
+  } finally {
+    setInstallingState(false);
+  }
+}
+
+async function handleSyncClick() {
+  if (isSyncing) {
+    // Already syncing, ignore
+    return;
+  }
+  
+  if (syncCanInterrupt) {
+    // Can interrupt, handle interruption
+    handleSyncInterrupt();
+    return;
+  }
+  
+  if (isInstalling) {
+    // Installation is active, cannot sync
+    return;
+  }
+  
+  if (isFixingBuild) {
+    // Fix build is active, cannot sync
+    return;
+  }
+  
+  if (isPlaying) {
+    // Game is launching, cannot sync
+    return;
+  }
+  
+  // Start sync
+  setSyncingState(true);
+  syncCanInterrupt = false;
+  
+  // Set up 5-second interrupt window
+  syncTimeout = window.setTimeout(() => {
+    syncCanInterrupt = true;
+    updateSyncButtonState(); // Update button to show "Прервать"
+    log("Sync can now be interrupted");
+  }, 5000);
+  
+  try {
+    await syncMods();
+  } catch (e) {
+    log(`Sync failed: ${e}`);
+  } finally {
+    setSyncingState(false);
+  }
+}
+
+// Protected fix build click handler
+async function handleFixBuildClick() {
+  if (isFixingBuild) {
+    // Already fixing build, ignore
+    return;
+  }
+  
+  if (fixBuildCanInterrupt) {
+    // Can interrupt, handle interruption
+    handleFixBuildInterrupt();
+    return;
+  }
+  
+  if (isInstalling) {
+    // Installation is active, cannot fix build
+    return;
+  }
+  
+  if (isSyncing) {
+    // Sync is active, cannot fix build
+    return;
+  }
+  
+  if (isPlaying) {
+    // Game is launching, cannot fix build
+    return;
+  }
+  
+  // Start fix build
+  setFixingBuildState(true);
+  fixBuildCanInterrupt = false;
+  
+  // Set up 5-second interrupt window
+  fixBuildTimeout = window.setTimeout(() => {
+    fixBuildCanInterrupt = true;
+    updateFixBuildButtonState(); // Update button to show "Прервать"
+    log("Fix build can now be interrupted");
+  }, 5000);
+  
+  try {
+    await fixBuild();
+  } catch (e) {
+    log(`Fix build failed: ${e}`);
+  } finally {
+    setFixingBuildState(false);
+  }
+}
+
+// Protected play click handler
+async function handlePlayClick() {
+  if (isPlaying) {
+    // Already playing, ignore
+    return;
+  }
+  
+  if (isInstalling) {
+    // Installation is active, cannot play
+    return;
+  }
+  
+  if (isSyncing) {
+    // Sync is active, cannot play
+    return;
+  }
+  
+  if (isFixingBuild) {
+    // Fix build is active, cannot play
+    return;
+  }
+  
+  // Set playing state immediately to show active state
+  setPlayingState(true);
+  
+  try {
+    await playGame();
+    // Don't reset state here - let window hide/show handle it
+  } catch (e) {
+    log(`Game launch failed: ${e}`);
+    setPlayingState(false); // Only reset on error
+  }
 }
 
 // Show welcome modal
@@ -499,6 +887,17 @@ function setupEvents() {
 
   // Modal
   btnSettings?.addEventListener("click", () => {
+    if (settingsButtonLocked) return;
+    
+    // Lock button for 2 seconds
+    settingsButtonLocked = true;
+    (btnSettings as HTMLButtonElement).disabled = true;
+    
+    setTimeout(() => {
+      settingsButtonLocked = false;
+      if (btnSettings) (btnSettings as HTMLButtonElement).disabled = false;
+    }, 2000);
+    
     // Store original values before opening
     originalConfig = {
       nickname: nicknameInput?.value,
@@ -528,6 +927,19 @@ function setupEvents() {
 
   // Browse button
   btnBrowse?.addEventListener("click", async () => {
+    if (browseButtonsLocked) return;
+    
+    // Lock browse buttons for 2 seconds
+    browseButtonsLocked = true;
+    if (btnBrowse) (btnBrowse as HTMLButtonElement).disabled = true;
+    if (welcomeBtnBrowse) (welcomeBtnBrowse as HTMLButtonElement).disabled = true;
+    
+    setTimeout(() => {
+      browseButtonsLocked = false;
+      if (btnBrowse) (btnBrowse as HTMLButtonElement).disabled = false;
+      if (welcomeBtnBrowse) (welcomeBtnBrowse as HTMLButtonElement).disabled = false;
+    }, 2000);
+    
     const selected = await open({ directory: true });
     if (selected && typeof selected === "string") {
       gameDirInput.value = selected.replace(/\\/g, "/");
@@ -537,6 +949,19 @@ function setupEvents() {
 
   // Welcome browse button
   welcomeBtnBrowse?.addEventListener("click", async () => {
+    if (browseButtonsLocked) return;
+    
+    // Lock browse buttons for 2 seconds
+    browseButtonsLocked = true;
+    if (btnBrowse) (btnBrowse as HTMLButtonElement).disabled = true;
+    if (welcomeBtnBrowse) (welcomeBtnBrowse as HTMLButtonElement).disabled = true;
+    
+    setTimeout(() => {
+      browseButtonsLocked = false;
+      if (btnBrowse) (btnBrowse as HTMLButtonElement).disabled = false;
+      if (welcomeBtnBrowse) (welcomeBtnBrowse as HTMLButtonElement).disabled = false;
+    }, 2000);
+    
     const selected = await open({ directory: true });
     if (selected && typeof selected === "string") {
       const path = selected.replace(/\\/g, "/");
@@ -547,10 +972,7 @@ function setupEvents() {
   });
 
   // Welcome install button
-  welcomeBtnInstall?.addEventListener("click", async () => {
-    // Don't hide modal here - it will close when installation completes
-    await installGame();
-  });
+  welcomeBtnInstall?.addEventListener("click", handleInstallClick);
 
   // Open mods folder
   btnOpenMods?.addEventListener("click", async () => {
@@ -579,10 +1001,57 @@ function setupEvents() {
   });
 
   // Game actions
-  btnPlay?.addEventListener("click", playGame);
-  btnInstall?.addEventListener("click", installGame);
-  btnSync?.addEventListener("click", syncMods);
-  btnFixBuild?.addEventListener("click", fixBuild);
+  btnPlay?.addEventListener("click", handlePlayClick);
+  btnInstall?.addEventListener("click", handleInstallClick);
+  btnSync?.addEventListener("click", handleSyncClick);
+  btnFixBuild?.addEventListener("click", handleFixBuildClick);
+  
+  // Add hover and active event listeners for PLAY button
+  if (btnPlay) {
+    btnPlay.addEventListener("mouseenter", () => {
+      if (!isPlaying && !isInstalling && !isSyncing && !isFixingBuild) {
+        const playIdle = btnPlay.querySelector('.play-idle') as HTMLImageElement;
+        const playHover = btnPlay.querySelector('.play-hover') as HTMLImageElement;
+        const playActive = btnPlay.querySelector('.play-active') as HTMLImageElement;
+        if (playIdle) playIdle.style.opacity = '0';
+        if (playHover) playHover.style.opacity = '1';
+        if (playActive) playActive.style.opacity = '0';
+      }
+    });
+    
+    btnPlay.addEventListener("mouseleave", () => {
+      if (!isPlaying && !isInstalling && !isSyncing && !isFixingBuild) {
+        const playIdle = btnPlay.querySelector('.play-idle') as HTMLImageElement;
+        const playHover = btnPlay.querySelector('.play-hover') as HTMLImageElement;
+        const playActive = btnPlay.querySelector('.play-active') as HTMLImageElement;
+        if (playIdle) playIdle.style.opacity = '1';
+        if (playHover) playHover.style.opacity = '0';
+        if (playActive) playActive.style.opacity = '0';
+      }
+    });
+    
+    btnPlay.addEventListener("mousedown", () => {
+      if (!isPlaying && !isInstalling && !isSyncing && !isFixingBuild) {
+        const playIdle = btnPlay.querySelector('.play-idle') as HTMLImageElement;
+        const playHover = btnPlay.querySelector('.play-hover') as HTMLImageElement;
+        const playActive = btnPlay.querySelector('.play-active') as HTMLImageElement;
+        if (playIdle) playIdle.style.opacity = '0';
+        if (playHover) playHover.style.opacity = '0';
+        if (playActive) playActive.style.opacity = '1';
+      }
+    });
+    
+    btnPlay.addEventListener("mouseup", () => {
+      if (!isPlaying && !isInstalling && !isSyncing && !isFixingBuild) {
+        const playIdle = btnPlay.querySelector('.play-idle') as HTMLImageElement;
+        const playHover = btnPlay.querySelector('.play-hover') as HTMLImageElement;
+        const playActive = btnPlay.querySelector('.play-active') as HTMLImageElement;
+        if (playIdle) playIdle.style.opacity = '1';
+        if (playHover) playHover.style.opacity = '0';
+        if (playActive) playActive.style.opacity = '0';
+      }
+    });
+  }
   btnClear?.addEventListener("click", () => {
     if (logContent) logContent.innerHTML = "";
   });
@@ -684,6 +1153,8 @@ function startGameMonitoring() {
         stopGameMonitoring();
         await invoke("show_window");
         log("Minecraft closed - launcher restored");
+        // Reset playing state when game closes
+        setPlayingState(false);
       }
     } catch (e) {
       console.error("Error checking Minecraft status:", e);
@@ -766,6 +1237,9 @@ async function installGame() {
         welcomeModal.classList.remove("active");
         log("Welcome modal closed - installation completed");
       }
+      
+      // Reset installation state
+      setInstallingState(false);
     }, 2000);
   } catch (e: any) {
     log(`Install error: ${e}`);
@@ -778,6 +1252,45 @@ async function installGame() {
     if (installProgressBar) installProgressBar.style.width = "0%";
     if (welcomeInstallProgress) welcomeInstallProgress.style.display = "none";
     if (welcomeInstallProgressBar) welcomeInstallProgressBar.style.width = "0%";
+  }
+}
+
+// Sync mods function
+async function syncMods() {
+  if (!gameDirInput?.value) {
+    log("Please set game directory first");
+    return;
+  }
+
+  log("Syncing mods...");
+  
+  // Show sync progress
+  if (syncProgress) syncProgress.style.display = "block";
+  
+  try {
+    const result = await invoke("sync_mods_simple", { gameDir: gameDirInput.value }) as string;
+    log(result);
+    
+    // Flash green after sync completes
+    if (btnSync) {
+      btnSync.classList.add("btn-success-flash");
+      setTimeout(() => {
+        btnSync.classList.remove("btn-success-flash");
+      }, 1000);
+    }
+    
+    // Reset sync state after completion
+    setTimeout(() => {
+      setSyncingState(false);
+      if (syncProgress) syncProgress.style.display = "none";
+      if (syncProgressBar) syncProgressBar.style.width = "0%";
+    }, 2000);
+    
+  } catch (e: any) {
+    log(`Sync error: ${e}`);
+    setSyncingState(false);
+    if (syncProgress) syncProgress.style.display = "none";
+    if (syncProgressBar) syncProgressBar.style.width = "0%";
   }
 }
 
@@ -875,89 +1388,6 @@ async function startFileCountingProgress(gameDir: string) {
   }, 1000); // Check every second
 }
 
-async function syncMods() {
-  await saveConfig();
-  log("Syncing...");
-  
-  // Show progress bar
-  if (syncProgress) syncProgress.style.display = "block";
-  if (syncProgressBar) syncProgressBar.style.width = "0%";
-  
-  try {
-    const result = await invoke("sync_mods_simple", {
-      gameDir: gameDirInput?.value || "E:/Games/test"
-    });
-    log(String(result));
-    
-    if (syncProgressBar) syncProgressBar.style.width = "100%";
-    
-    // Hide progress bar after delay
-    setTimeout(() => {
-      if (syncProgress) syncProgress.style.display = "none";
-      if (syncProgressBar) syncProgressBar.style.width = "0%";
-      
-      // Flash green after progress bar is hidden
-      if (btnSync) {
-        btnSync.classList.add("btn-success-flash");
-        setTimeout(() => {
-          btnSync.classList.remove("btn-success-flash");
-        }, 1000);
-      }
-    }, 2000);
-  } catch (e: any) {
-    log(`Sync error: ${e}`);
-    // Hide progress bar on error
-    if (syncProgress) syncProgress.style.display = "none";
-    if (syncProgressBar) syncProgressBar.style.width = "0%";
-  }
-}
-
-async function fixBuild() {
-  await saveConfig();
-  log("Fixing build...");
-  
-  // Show progress bar
-  if (fixBuildProgress) fixBuildProgress.style.display = "block";
-  if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
-  
-  try {
-    const gameDir = gameDirInput?.value || "";
-    
-    // Clear mods folder (30% progress)
-    log("Clearing mods folder...");
-    const clearResult = await invoke("clear_mods_folder", { gameDir });
-    log(String(clearResult));
-    if (fixBuildProgressBar) fixBuildProgressBar.style.width = "30%";
-    
-    // Sync mods (30-100% progress via events)
-    log("Syncing mods...");
-    const syncResult = await invoke("sync_mods_simple", { gameDir });
-    log(String(syncResult));
-    
-    if (fixBuildProgressBar) fixBuildProgressBar.style.width = "100%";
-    log("Build fixed successfully!");
-    
-    // Hide progress bar after delay
-    setTimeout(() => {
-      if (fixBuildProgress) fixBuildProgress.style.display = "none";
-      if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
-      
-      // Flash green after progress bar is hidden
-      if (btnFixBuild) {
-        btnFixBuild.classList.add("btn-success-flash");
-        setTimeout(() => {
-          btnFixBuild.classList.remove("btn-success-flash");
-        }, 1000);
-      }
-    }, 2000);
-  } catch (e: any) {
-    log(`Fix build error: ${e}`);
-    // Hide progress bar on error
-    if (fixBuildProgress) fixBuildProgress.style.display = "none";
-    if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
-  }
-}
-
 // Listen for sync progress events
 listen("sync-progress", (event: any) => {
   log(event.payload as string);
@@ -1037,6 +1467,61 @@ listen("install-progress", (event: any) => {
     }
   }
 });
+
+async function fixBuild() {
+  if (!gameDirInput?.value) {
+    log("Please set game directory first");
+    return;
+  }
+
+  await saveConfig();
+  log("Fixing build...");
+  
+  // Show progress bar
+  if (fixBuildProgress) fixBuildProgress.style.display = "block";
+  if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
+  
+  try {
+    const gameDir = gameDirInput.value;
+    
+    // Clear mods folder (30% progress)
+    log("Clearing mods folder...");
+    const clearResult = await invoke("clear_mods_folder", { gameDir });
+    log(String(clearResult));
+    if (fixBuildProgressBar) fixBuildProgressBar.style.width = "30%";
+    
+    // Sync mods (30-100% progress via events)
+    log("Syncing mods...");
+    const syncResult = await invoke("sync_mods_simple", { gameDir });
+    log(String(syncResult));
+    
+    if (fixBuildProgressBar) fixBuildProgressBar.style.width = "100%";
+    log("Build fixed successfully!");
+    
+    // Hide progress bar after delay
+    setTimeout(() => {
+      if (fixBuildProgress) fixBuildProgress.style.display = "none";
+      if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
+      
+      // Flash green after progress bar is hidden
+      if (btnFixBuild) {
+        btnFixBuild.classList.add("btn-success-flash");
+        setTimeout(() => {
+          btnFixBuild.classList.remove("btn-success-flash");
+        }, 1000);
+      }
+      
+      // Reset fix build state after completion
+      setFixingBuildState(false);
+    }, 2000);
+  } catch (e: any) {
+    log(`Fix build error: ${e}`);
+    setFixingBuildState(false);
+    // Hide progress bar on error
+    if (fixBuildProgress) fixBuildProgress.style.display = "none";
+    if (fixBuildProgressBar) fixBuildProgressBar.style.width = "0%";
+  }
+}
 
 async function checkServerStatus() {
   try {

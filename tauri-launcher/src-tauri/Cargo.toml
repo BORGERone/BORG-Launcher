@@ -1,6 +1,6 @@
 [package]
 name = "borg-minecraft-launcher"
-version = "2.0.0"
+version = "1.3.0"
 description = "BORG Minecraft Launcher v2 - Beautiful Tauri Edition"
 authors = ["BORG Team"]
 license = "MIT"

@@ -1073,7 +1073,7 @@ async fn download_servers_dat(game_dir: &str) -> Result<(), String> {
 }
 
 // Current launcher version
-const LAUNCHER_VERSION: &str = "1.2.0";
+const LAUNCHER_VERSION: &str = "1.3.0";
 
 // Parse version string (e.g., "v2.1.0" -> (2, 1, 0))
 fn parse_version(version: &str) -> Option<(u32, u32, u32)> {
