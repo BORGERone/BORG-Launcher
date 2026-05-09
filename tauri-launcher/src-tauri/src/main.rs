@@ -9,7 +9,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::thread;
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use sha1::{Sha1, Digest};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::ExitStatusExt;
@@ -746,6 +746,40 @@ async fn install_game_simple(game_dir: String) -> Result<String, String> {
     }
 }
 
+// Install game using local MRpack file (test version - debug only)
+#[cfg(debug_assertions)]
+#[tauri::command]
+async fn install_game_local(game_dir: String) -> Result<String, String> {
+    let launcher_dir = get_config_dir();
+    
+    // Use local MRpack file from dop folder
+    let local_mrpack_path = Path::new(&launcher_dir).join("dop").join("123.mrpack");
+    
+    if !local_mrpack_path.exists() {
+        return Err(format!("Local MRpack file not found at: {}", local_mrpack_path.display()));
+    }
+
+    // Copy local MRpack to game directory for installation
+    let game_dir_path = Path::new(&game_dir);
+    fs::create_dir_all(game_dir_path)
+        .map_err(|e| format!("Failed to create game directory: {}", e))?;
+    
+    // Copy MRpack file to game directory
+    let target_mrpack = game_dir_path.join("123.mrpack");
+    fs::copy(&local_mrpack_path, &target_mrpack)
+        .map_err(|e| format!("Failed to copy MRpack file: {}", e))?;
+    
+    Ok(format!("Local MRpack copied to game directory: {}", target_mrpack.display()))
+}
+
+// Install game using GitHub MRpack (release version)
+#[cfg(not(debug_assertions))]
+#[tauri::command]
+async fn install_game_local(game_dir: String) -> Result<String, String> {
+    // In release version, always use GitHub version
+    install_game_simple(game_dir).await
+}
+
 #[tauri::command]
 async fn sync_mods_simple(game_dir: String, window: tauri::Window) -> Result<String, String> {
     // Use MRpack sync instead of Python sync
@@ -757,6 +791,89 @@ async fn sync_mods_simple(game_dir: String, window: tauri::Window) -> Result<Str
     Ok(result)
 }
 
+// Sync mods using local MRpack and local config (test version - debug only)
+#[cfg(debug_assertions)]
+#[tauri::command]
+async fn sync_mods_simple_local(game_dir: String, window: tauri::Window) -> Result<String, String> {
+    let launcher_dir = get_config_dir();
+    let local_mrpack_path = Path::new(&launcher_dir).join("dop").join("123.mrpack");
+    
+    if !local_mrpack_path.exists() {
+        return Err(format!("Local MRpack file not found at: {}", local_mrpack_path.display()));
+    }
+    
+    // Use local MRpack sync
+    let result = sync_mods_from_local_mrpack(game_dir.clone(), window).await?;
+    
+    // Sync config folder from local dop after mods sync
+    let _ = sync_config_from_local(game_dir).await;
+    
+    Ok(result)
+}
+
+// Sync mods using GitHub MRpack and GitHub config (release version)
+#[cfg(not(debug_assertions))]
+#[tauri::command]
+async fn sync_mods_simple_local(game_dir: String, window: tauri::Window) -> Result<String, String> {
+    // In release version, always use GitHub version
+    let result = sync_mods_from_mrpack(game_dir.clone(), window).await?;
+    
+    // Sync config folder from GitHub after mods sync
+    let _ = sync_config_from_github(game_dir).await;
+    
+    Ok(result)
+}
+
+// Sync config folder from local dop folder (test version)
+#[tauri::command]
+async fn sync_config_from_local(game_dir: String) -> Result<String, String> {
+    let launcher_dir = get_config_dir();
+    
+    // Use local config folder from dop
+    let local_config_path = Path::new(&launcher_dir).join("dop").join("config");
+    
+    if !local_config_path.exists() {
+        return Err(format!("Local config folder not found at: {}", local_config_path.display()));
+    }
+    
+    // Copy entire config folder to game config directory
+    let target_dir = Path::new(&game_dir).join("config");
+    
+    // Create target directory if it doesn't exist (don't delete existing)
+    fs::create_dir_all(&target_dir)
+        .map_err(|e| format!("Failed to create config directory: {}", e))?;
+    
+    // Copy all files from local config to game config (replace existing files)
+    copy_dir_recursive(&local_config_path, &target_dir)?;
+    
+    Ok("Config folder synced from local dop folder".to_string())
+}
+
+// Helper function to recursively copy directory
+fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), String> {
+    if !destination.exists() {
+        fs::create_dir_all(destination)
+            .map_err(|e| format!("Failed to create directory {}: {}", destination.display(), e))?;
+    }
+    
+    for entry in fs::read_dir(source)
+        .map_err(|e| format!("Failed to read directory {}: {}", source.display(), e))? 
+    {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        
+        if entry.path().is_dir() {
+            copy_dir_recursive(&source_path, &destination_path)?;
+        } else {
+            fs::copy(&source_path, &destination_path)
+                .map_err(|e| format!("Failed to copy file {} to {}: {}", source_path.display(), destination_path.display(), e))?;
+        }
+    }
+    
+    Ok(())
+}
+
 // Sync config folder from GitHub (includes fancymenu, bettercombat, epicfight, etc.)
 #[tauri::command]
 async fn sync_config_from_github(game_dir: String) -> Result<String, String> {
@@ -765,8 +882,7 @@ async fn sync_config_from_github(game_dir: String) -> Result<String, String> {
     download_github_folder("dop/config".to_string(), target_dir.to_str().unwrap_or(".").to_string()).await
 }
 
-// Download and install mods from MRpack
-#[tauri::command]
+// Download and install mods from MRpack (GitHub version - internal function)
 async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Result<String, String> {
     let client = reqwest::Client::new();
     
@@ -921,19 +1037,21 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
     // Download each mod
     let mut downloaded = 0;
     let mut skipped = 0;
-    let total_mods = index.files.iter().filter(|f| f.path.starts_with("mods/") || f.path.starts_with("shaderpacks/")).count();
+    let total_mods = index.files.iter().filter(|f| f.path.starts_with("mods/") || f.path.starts_with("shaderpacks/") || f.path.starts_with("resourcepacks/")).count();
     
     emit_progress(&window, format!("Starting download of {} mods...", total_mods));
     
     for (_index, file) in index.files.iter().enumerate() {
-        // Only process files in mods or shaderpacks directory
-        if !file.path.starts_with("mods/") && !file.path.starts_with("shaderpacks/") {
+        // Only process files in mods, shaderpacks, or resourcepacks directory
+        if !file.path.starts_with("mods/") && !file.path.starts_with("shaderpacks/") && !file.path.starts_with("resourcepacks/") {
             continue;
         }
         
         // Determine target directory based on path
         let target_dir = if file.path.starts_with("shaderpacks/") {
             Path::new(&game_dir).join("shaderpacks")
+        } else if file.path.starts_with("resourcepacks/") {
+            Path::new(&game_dir).join("resourcepacks")
         } else {
             mods_dir.clone()
         };
@@ -999,34 +1117,24 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
     // Remove extra .jar files not in the modpack
     emit_progress(&window, "Checking for extra mods...".to_string());
     
-    // Collect expected mod filenames from index
-    let mut expected_mods: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for file in index.files.iter() {
-        if file.path.starts_with("mods/") {
-            let filename = file.path.split('/').last().unwrap_or(&file.path);
-            expected_mods.insert(filename.to_string());
-        }
-    }
-    
-    // Also include .jar files from overrides that go to mods/
-    for jar_file in overrides_jar_files.iter() {
-        expected_mods.insert(jar_file.clone());
-    }
-    
-    // Scan mods directory for .jar files
-    let mut removed_count = 0;
     if let Ok(entries) = fs::read_dir(&mods_dir) {
         for entry in entries {
             if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) == Some("jar") {
-                    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                        if !expected_mods.contains(filename) {
-                            // Delete extra mod
-                            if fs::remove_file(&path).is_ok() {
-                                removed_count += 1;
-                                emit_progress_update(&window, format!("Removed extra mod: {}", filename));
-                            }
+                if let Some(filename) = entry.file_name().to_str() {
+                    if filename.ends_with(".jar") && !overrides_jar_files.contains(filename) {
+                        let file_path = mods_dir.join(filename);
+                        let file_name_str = filename.to_string();
+                        
+                        // Check if this file is in the modpack index
+                        let in_index = index.files.iter().any(|f| {
+                            f.path.starts_with("mods/") && 
+                            f.path.ends_with(&file_name_str)
+                        });
+                        
+                        if !in_index {
+                            fs::remove_file(&file_path)
+                                .map_err(|e| format!("Failed to remove extra mod {}: {}", filename, e))?;
+                            emit_progress_update(&window, format!("Removed extra mod: {}", filename));
                         }
                     }
                 }
@@ -1034,16 +1142,254 @@ async fn sync_mods_from_mrpack(game_dir: String, window: tauri::Window) -> Resul
         }
     }
     
-    if removed_count > 0 {
-        emit_progress(&window, format!("Removed {} extra mod(s)", removed_count));
+    Ok(format!("Synced {} mods (downloaded: {}, skipped: {})", total_mods, downloaded, skipped))
+}
+
+// Download and install mods from MRpack (local version for testing)
+#[tauri::command]
+async fn sync_mods_from_local_mrpack(game_dir: String, window: tauri::Window) -> Result<String, String> {
+    let launcher_dir = get_config_dir();
+    
+    // Use local MRpack file from dop folder
+    let local_mrpack_path = Path::new(&launcher_dir).join("dop").join("123.mrpack");
+    
+    if !local_mrpack_path.exists() {
+        return Err(format!("Local MRpack file not found at: {}", local_mrpack_path.display()));
+    }
+
+    // Read local MRpack file
+    let mrpack_bytes = fs::read(&local_mrpack_path)
+        .map_err(|e| format!("Failed to read local MRpack: {}", e))?;
+
+    let client = reqwest::Client::new();
+
+    // Function to calculate SHA1 hash of a file
+    fn calculate_sha1(file_path: &Path) -> Result<String, std::io::Error> {
+        let mut file = fs::File::open(file_path)?;
+        let mut hasher = Sha1::new();
+        let mut buffer = [0u8; 8192];
+        
+        loop {
+            let n = file.read(&mut buffer)?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buffer[..n]);
+        }
+        
+        Ok(hex::encode(hasher.finalize()))
+    }
+
+    // Helper functions
+    fn create_progress_bar(current: usize, total: usize) -> String {
+        let percentage = if total > 0 {
+            (current as f64 / total as f64 * 100.0) as usize
+        } else {
+            0
+        };
+        let filled = (percentage / 2) as usize;
+        let extra_filled = filled / 13;
+        let total_filled = filled + extra_filled;
+        let bar_width = 50 + extra_filled;
+        let mut bar: Vec<char> = " ".repeat(bar_width).chars().collect();
+        for i in 0..total_filled.min(bar_width) {
+            if i < bar.len() {
+                bar[i] = 'I';
+            }
+        }
+        format!("[{}]({}%)", bar.iter().collect::<String>(), percentage)
+    }
+
+    fn emit_progress(window: &tauri::Window, message: String) {
+        let _ = window.emit("sync-progress", message);
+    }
+
+    fn emit_progress_update(window: &tauri::Window, message: String) {
+        let _ = window.emit("sync-progress-update", message);
+    }
+
+    fn pad_filename(filename: &str, width: usize) -> String {
+        if filename.len() >= width {
+            filename.chars().take(width).collect()
+        } else {
+            format!("{}{}", filename, " ".repeat(width - filename.len()))
+        }
+    }
+
+    // Extract ZIP archive from local MRpack file
+    let cursor = std::io::Cursor::new(mrpack_bytes);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| format!("Failed to open MRpack as ZIP: {}", e))?;
+    
+    // Find and read modrinth.index.json
+    let mut index_content = String::new();
+    {
+        let mut index_file = archive.by_name("modrinth.index.json")
+            .map_err(|e| format!("modrinth.index.json not found in MRpack: {}", e))?;
+        
+        index_file.read_to_string(&mut index_content)
+            .map_err(|e| format!("Failed to read index.json: {}", e))?;
     }
     
-    let _ = download_servers_dat(&game_dir).await;
+    // Parse index
+    let index: ModrinthIndex = serde_json::from_str(&index_content)
+        .map_err(|e| format!("Failed to parse modrinth.index.json: {}. JSON was: {}", e, index_content))?;
     
-    // Sync config folder from GitHub after mods sync
-    let _ = sync_config_from_github(game_dir.clone()).await;
+    // Create mods directory
+    let mods_dir = Path::new(&game_dir).join("mods");
+    fs::create_dir_all(&mods_dir)
+        .map_err(|e| format!("Failed to create mods directory: {}", e))?;
+
+    // Extract overrides folder
+    let mut overrides_jar_files: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| format!("Failed to access file in archive: {}", e))?;
+        let file_path = file.name();
+        
+        // Check if file is in overrides folder
+        if file_path.starts_with("overrides/") {
+            // Remove "overrides/" prefix to get relative path
+            let relative_path = file_path.strip_prefix("overrides/")
+                .ok_or("Failed to strip overrides prefix")?;
+            
+            // Skip directories
+            if file.name().ends_with('/') {
+                continue;
+            }
+            
+            // Track .jar files in overrides that go to mods/
+            if relative_path.starts_with("mods/") && relative_path.ends_with(".jar") {
+                let filename = relative_path.split('/').last().unwrap_or(relative_path);
+                overrides_jar_files.insert(filename.to_string());
+            }
+            
+            // Create target path in game directory
+            let target_path = Path::new(&game_dir).join(relative_path);
+            
+            // Create parent directories if needed
+            if let Some(parent) = target_path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create directory {}: {}", parent.display(), e))?;
+            }
+            
+            // Extract file
+            let mut output_file = fs::File::create(&target_path)
+                .map_err(|e| format!("Failed to create file {}: {}", target_path.display(), e))?;
+            
+            std::io::copy(&mut file, &mut output_file)
+                .map_err(|e| format!("Failed to write file {}: {}", target_path.display(), e))?;
+        }
+    }
     
-    Ok(format!("Downloaded {} mods, skipped {} existing mods from MRpack", downloaded, skipped))
+    // Download each mod from internet (like GitHub version but using local MRpack for index)
+    let mut downloaded = 0;
+    let mut skipped = 0;
+    let total_mods = index.files.iter().filter(|f| f.path.starts_with("mods/") || f.path.starts_with("shaderpacks/") || f.path.starts_with("resourcepacks/")).count();
+    
+    emit_progress(&window, format!("Starting download of {} mods...", total_mods));
+    
+    for (_index, file) in index.files.iter().enumerate() {
+        // Only process files in mods, shaderpacks, or resourcepacks directory
+        if !file.path.starts_with("mods/") && !file.path.starts_with("shaderpacks/") && !file.path.starts_with("resourcepacks/") {
+            continue;
+        }
+        
+        // Determine target directory based on path
+        let target_dir = if file.path.starts_with("shaderpacks/") {
+            Path::new(&game_dir).join("shaderpacks")
+        } else if file.path.starts_with("resourcepacks/") {
+            Path::new(&game_dir).join("resourcepacks")
+        } else {
+            mods_dir.clone()
+        };
+        
+        // Create target directory if needed
+        fs::create_dir_all(&target_dir)
+            .map_err(|e| format!("Failed to create directory {}: {}", target_dir.display(), e))?;
+        
+        // Get download URL (prefer first one)
+        if let Some(download_url) = file.downloads.first() {
+            // Extract filename from path
+            let filename = file.path.split('/').last().unwrap_or(&file.path);
+            let mod_path = target_dir.join(filename);
+            
+            // Check if file already exists and hash matches
+            if mod_path.exists() {
+                if let Some(expected_hash) = &file.hashes.sha1 {
+                    match calculate_sha1(&mod_path) {
+                        Ok(actual_hash) => {
+                            if actual_hash == *expected_hash {
+                                skipped += 1;
+                                let progress = create_progress_bar(downloaded + skipped, total_mods);
+                                let padded_filename = pad_filename(filename, 50);
+                                emit_progress_update(&window, format!("{}   Skipping: {}", progress, padded_filename));
+                                continue;
+                            }
+                        }
+                        Err(_) => {
+                            // If hash calculation fails, re-download
+                        }
+                    }
+                }
+            }
+            
+            let progress = create_progress_bar(downloaded + skipped, total_mods);
+            let padded_filename = pad_filename(filename, 50);
+            emit_progress_update(&window, format!("{}   Downloading: {}", progress, padded_filename));
+            
+            let mod_response = client
+                .get(download_url)
+                .header("User-Agent", "BORG-Launcher")
+                .send()
+                .await
+                .map_err(|e| format!("Failed to download mod {}: {}", file.path, e))?;
+
+            if mod_response.status().is_success() {
+                let mod_content = mod_response
+                    .bytes()
+                    .await
+                    .map_err(|e| format!("Failed to read mod content: {}", e))?;
+
+                fs::write(&mod_path, mod_content)
+                    .map_err(|e| format!("Failed to write mod {}: {}", filename, e))?;
+
+                downloaded += 1;
+            }
+        }
+    }
+    
+    let final_progress = create_progress_bar(downloaded + skipped, total_mods);
+    emit_progress_update(&window, format!("{}   Complete!", final_progress));
+    
+    // Remove extra .jar files not in the modpack
+    emit_progress(&window, "Checking for extra mods...".to_string());
+    
+    if let Ok(entries) = fs::read_dir(&mods_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                if let Some(filename) = entry.file_name().to_str() {
+                    if filename.ends_with(".jar") && !overrides_jar_files.contains(filename) {
+                        let file_path = mods_dir.join(filename);
+                        let file_name_str = filename.to_string();
+                        
+                        // Check if this file is in the modpack index
+                        let in_index = index.files.iter().any(|f| {
+                            f.path.starts_with("mods/") && 
+                            f.path.ends_with(&file_name_str)
+                        });
+                        
+                        if !in_index {
+                            fs::remove_file(&file_path)
+                                .map_err(|e| format!("Failed to remove extra mod {}: {}", filename, e))?;
+                            emit_progress_update(&window, format!("Removed extra mod: {}", filename));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(format!("Synced {} mods (downloaded: {}, skipped: {})", total_mods, downloaded, skipped))
 }
 
 // Download servers.dat from GitHub to game directory
@@ -1073,7 +1419,7 @@ async fn download_servers_dat(game_dir: &str) -> Result<(), String> {
 }
 
 // Current launcher version
-const LAUNCHER_VERSION: &str = "1.3.0";
+const LAUNCHER_VERSION: &str = "1.4.0";
 
 // Parse version string (e.g., "v2.1.0" -> (2, 1, 0))
 fn parse_version(version: &str) -> Option<(u32, u32, u32)> {
@@ -1298,8 +1644,9 @@ fn main() {
             clear_mods_folder,
             launch_game_simple,
             install_game_simple,
+            install_game_local,
             sync_mods_simple,
-            sync_mods_from_mrpack,
+            sync_mods_simple_local,
             read_news,
             hide_window,
             show_window,
@@ -1308,6 +1655,8 @@ fn main() {
             download_github_file,
             download_github_folder,
             sync_config_from_github,
+            sync_config_from_local,
+            sync_mods_from_local_mrpack,
             check_for_updates,
             get_launcher_version,
             is_first_launch,

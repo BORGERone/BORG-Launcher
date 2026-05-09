@@ -12,7 +12,7 @@
       "http": {
         "all": true,
         "request": true,
-        "scope": ["https://raw.githubusercontent.com/*"]
+        "scope": ["https://raw.githubusercontent.com/*", "https://api.github.com/*", "https://cdn.modrinth.com/*"]
       },
       "dialog": {
         "all": false,

@@ -1200,7 +1200,7 @@ async function installGame() {
   }, 15000);
   
   try {
-    const result = await invoke("install_game_simple", { gameDir });
+    const result = await invoke("install_game_local", { gameDir });
     log(String(result));
     
     // Stop all progress on completion
@@ -1268,7 +1268,7 @@ async function syncMods() {
   if (syncProgress) syncProgress.style.display = "block";
   
   try {
-    const result = await invoke("sync_mods_simple", { gameDir: gameDirInput.value }) as string;
+    const result = await invoke("sync_mods_simple_local", { gameDir: gameDirInput.value }) as string;
     log(result);
     
     // Flash green after sync completes
